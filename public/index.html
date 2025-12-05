@@ -6,7 +6,9 @@
 <style>
   body {
     font-family: system-ui;
-    margin: 20px;
+    margin: 20px auto;
+    max-width: 900px;
+    padding: 0 20px;
   }
   .card {
     border: 1px solid #ddd;
@@ -35,6 +37,7 @@
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    max-width: calc(7 * 120px + 6 * 8px);
     gap: 8px;
   }
   .pill {
@@ -78,7 +81,7 @@
     const [Y, M, D] = iso.split('-').map(Number);
     const dt = new Date(Y, M - 1, D);
     const w = ['日', '月', '火', '水', '木', '金', '土'][dt.getDay()];
-    return `${M}/${D}(${w})`;
+    return `${M}/${D} (${w})`;
   }
   const store = {
     get(f) {
