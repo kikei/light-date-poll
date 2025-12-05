@@ -32,11 +32,4 @@ function validateDateRange(startISO, endISO) {
   return { valid: true, startDate: start.date, endDate: end.date };
 }
 
-export {
-  FORM_ID_LENGTH,
-  MAX_MESSAGE_LENGTH,
-  isValidFormId,
-  isValidISODate,
-  isValidMessage,
-  validateDateRange,
-};
+export { isValidFormId, isValidISODate, isValidMessage, validateDateRange };

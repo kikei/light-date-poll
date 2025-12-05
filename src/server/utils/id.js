@@ -17,4 +17,4 @@ function rsecret(n = 12) {
   return rand(SECRET_CHARS, n);
 }
 
-export { rand, rid, rsecret };
+export { rid, rsecret };
