@@ -6,13 +6,49 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL, // Render Postgres の接続文字列
   ssl: { rejectUnauthorized: false },
 });
+
+const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const FORM_ID_LENGTH = 8;
+const MAX_MESSAGE_LENGTH = 2000;
+const MAX_DAYS = 365;
+
+function isValidFormId(id) {
+  return typeof id === 'string' && id.length === FORM_ID_LENGTH;
+}
+
+function parseISODate(value) {
+  if (typeof value !== 'string' || value.length !== 10) return null;
+  if (!ISO_DATE_REGEX.test(value)) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  if (date.toISOString().slice(0, 10) !== value) return null; // ensure no timezone drift
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function validateDateRange(startISO, endISO) {
+  const startDate = parseISODate(startISO);
+  const endDate = parseISODate(endISO);
+  if (!startDate || !endDate)
+    return { valid: false, error: 'invalid date format (YYYY-MM-DD)' };
+  if (startDate.getTime() > endDate.getTime())
+    return { valid: false, error: 'startDate must be on or before endDate' };
+  return { valid: true, startDate, endDate };
+}
+
+function clampDays(days) {
+  const n = Number(days);
+  if (!Number.isFinite(n)) return MAX_DAYS;
+  if (n <= 0) return 0;
+  return Math.min(Math.floor(n), MAX_DAYS);
+}
 
 // 起動時に最低限のテーブルを用意
 async function migrate() {
@@ -58,15 +94,16 @@ function toISO(d) {
     dd = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${dd}`;
 }
-function pickDates(startISO, endISO, limit = 10, weekdaysOnly = true) {
+function pickDates(startDate, endDate, limit = 10, weekdaysOnly = true) {
   const out = [],
-    s = new Date(startISO),
-    e = new Date(endISO);
+    s = new Date(startDate),
+    e = new Date(endDate);
   s.setHours(0, 0, 0, 0);
   e.setHours(0, 0, 0, 0);
+  const max = Math.max(0, Math.floor(limit) || 0);
   for (
     let d = new Date(s);
-    d <= e && out.length < limit;
+    d <= e && out.length < max;
     d.setDate(d.getDate() + 1)
   ) {
     const w = d.getDay(); // 0:日 6:土
@@ -87,22 +124,33 @@ app.post('/api/forms', async (req, res) => {
       weekdaysOnly = true,
     } = req.body || {};
     if (!startDate || !endDate)
-      return res.status(400).json({ error: 'missing fields' });
+      return res
+        .status(400)
+        .json({ error: 'startDate and endDate are required' });
+
+    if (message != null && typeof message !== 'string')
+      return res.status(400).json({ error: 'message must be a string' });
+    const safeMessage = typeof message === 'string' ? message : '';
+    if (safeMessage.length > MAX_MESSAGE_LENGTH)
+      return res.status(400).json({ error: 'message too long (max 2000)' });
+
+    const range = validateDateRange(startDate, endDate);
+    if (!range.valid) return res.status(400).json({ error: range.error });
 
     const formId = rid();
     const secret = rsecret();
-    const dateLimit = days != null ? Number(days) : Infinity;
+    const dateLimit = clampDays(days);
     const options = pickDates(
-      startDate,
-      endDate,
-      dateLimit || Infinity,
+      range.startDate,
+      range.endDate,
+      dateLimit,
       !!weekdaysOnly
     );
 
     await pool.query('BEGIN');
     await pool.query(
       'INSERT INTO forms(form_id, message, options, secret) VALUES($1,$2,$3,$4)',
-      [formId, message || '', JSON.stringify(options), secret]
+      [formId, safeMessage, JSON.stringify(options), secret]
     );
     if (options.length) {
       const values = options.map((_, i) => `($1, $${i + 2}, 0)`).join(',');
@@ -131,6 +179,8 @@ app.post('/api/forms', async (req, res) => {
 // 取得
 app.get('/api/forms/:id', async (req, res) => {
   const { id } = req.params;
+  if (!isValidFormId(id))
+    return res.status(400).json({ error: 'invalid formId' });
   const f = await pool.query(
     'SELECT message, options FROM forms WHERE form_id=$1',
     [id]
@@ -155,14 +205,29 @@ app.get('/api/forms/:id', async (req, res) => {
 app.post('/api/forms/:id/vote', async (req, res) => {
   const { id } = req.params;
   const { date } = req.body || {};
+  if (!isValidFormId(id))
+    return res.status(400).json({ error: 'invalid formId' });
   if (!date) return res.status(400).json({ error: 'missing date' });
+  const parsedDate = parseISODate(date);
+  if (!parsedDate)
+    return res.status(400).json({ error: 'invalid date format (YYYY-MM-DD)' });
+  const isoDate = toISO(parsedDate);
+  const formResult = await pool.query(
+    'SELECT options FROM forms WHERE form_id = $1',
+    [id]
+  );
+  if (!formResult.rowCount)
+    return res.status(404).json({ error: 'form not found' });
+  const validDates = formResult.rows[0].options;
+  if (!validDates.includes(isoDate))
+    return res.status(400).json({ error: 'invalid date' });
   await pool.query(
     `
     INSERT INTO counts(form_id, date, count)
     VALUES ($1,$2,1)
     ON CONFLICT (form_id, date) DO UPDATE SET count = counts.count + 1
   `,
-    [id, date]
+    [id, isoDate]
   );
   res.json({ ok: true });
 });
@@ -171,10 +236,25 @@ app.post('/api/forms/:id/vote', async (req, res) => {
 app.delete('/api/forms/:id/vote', async (req, res) => {
   const { id } = req.params;
   const { date } = req.body || {};
+  if (!isValidFormId(id))
+    return res.status(400).json({ error: 'invalid formId' });
   if (!date) return res.status(400).json({ error: 'missing date' });
+  const parsedDate = parseISODate(date);
+  if (!parsedDate)
+    return res.status(400).json({ error: 'invalid date format (YYYY-MM-DD)' });
+  const isoDate = toISO(parsedDate);
+  const formResult = await pool.query(
+    'SELECT options FROM forms WHERE form_id = $1',
+    [id]
+  );
+  if (!formResult.rowCount)
+    return res.status(404).json({ error: 'form not found' });
+  const validDates = formResult.rows[0].options;
+  if (!validDates.includes(isoDate))
+    return res.status(400).json({ error: 'invalid date' });
   await pool.query(
     'UPDATE counts SET count = GREATEST(0, count - 1) WHERE form_id = $1 AND date = $2',
-    [id, date]
+    [id, isoDate]
   );
   res.json({ ok: true });
 });
