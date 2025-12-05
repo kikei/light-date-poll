@@ -118,8 +118,8 @@ app.post('/api/forms', async (req, res) => {
         : '';
     res.json({
       formId,
-      voteUrl: `${origin}/#vote?formId=${formId}`,
-      editUrl: `${origin}/#edit?formId=${formId}&secret=${secret}`,
+      voteUrl: `${origin}/#/vote?formId=${formId}`,
+      editUrl: `${origin}/#/edit?formId=${formId}&secret=${secret}`,
     });
   } catch (e) {
     await pool.query('ROLLBACK').catch(() => {});
