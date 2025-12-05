@@ -1,83 +1,292 @@
-<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<!doctype html><meta charset="utf-8" /><meta
+  name="viewport"
+  content="width=device-width,initial-scale=1"
+/>
 <title>超簡易・日付投票</title>
 <style>
-  body{font-family:system-ui;margin:20px} .card{border:1px solid #ddd;border-radius:12px;padding:16px;margin:12px 0}
-  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  button{padding:8px 12px;border-radius:10px;border:1px solid #ccc;background:#fff;cursor:pointer}
-  button.primary{background:#111;color:#fff;border-color:#111}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
-  .pill{border:1px solid #bbb;padding:6px 8px;border-radius:999px;display:inline-flex;gap:6px;align-items:center}
-  .muted{color:#666}
+  body {
+    font-family: system-ui;
+    margin: 20px;
+  }
+  .card {
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    padding: 16px;
+    margin: 12px 0;
+  }
+  .row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  button {
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid #ccc;
+    background: #fff;
+    cursor: pointer;
+  }
+  button.primary {
+    background: #111;
+    color: #fff;
+    border-color: #111;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 8px;
+  }
+  .pill {
+    border: 1px solid #bbb;
+    padding: 6px 8px;
+    border-radius: 999px;
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .muted {
+    color: #666;
+  }
 </style>
 <div id="app"></div>
 <script>
-const API="/api";
-function el(t,a={},...c){const e=document.createElement(t);for(const[k,v]of Object.entries(a)){if(k==="class")e.className=v;else if(k.startsWith("on"))e.addEventListener(k.slice(2),v);else e.setAttribute(k,v)}for(const x of c)e.append(x.nodeType?x:document.createTextNode(x));return e}
-function hash(){return location.hash.split("?")[0]||"#/create"}; function qs(){return Object.fromEntries(new URLSearchParams(location.hash.split("?")[1]||""))}
-function set(n,d){n.innerHTML="";n.append(d)}
-function fmtJP(iso){const [Y,M,D]=iso.split("-").map(Number);const dt=new Date(Y,M-1,D);const w=["日","月","火","水","木","金","土"][dt.getDay()];return `${M}/${D}(${w})`}
-const store={get(f){try{return JSON.parse(localStorage.getItem("voted:"+f)||"[]")}catch{return[]}}, add(f,d){const a=this.get(f);if(!a.includes(d)){a.push(d);localStorage.setItem("voted:"+f,JSON.stringify(a))}}};
-
-function Create(){
-  const app=el("div"); const s=el("input",{type:"date"}), e=el("input",{type:"date"}), msg=el("input",{type:"text",placeholder:"メッセージ"});
-  const days=el("input",{type:"number",value:10,style:"width:80px"}); const weekdays=el("input",{type:"checkbox",checked:true});
-  const btn=el("button",{class:"primary",onclick:async()=>{
-    if(!s.value||!e.value||!msg.value){alert("開始・終了・メッセージ必須");return}
-    const r=await fetch(API+"/forms",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({startDate:s.value,endDate:e.value,message:msg.value,days:Number(days.value)||10,weekdaysOnly:weekdays.checked})});
-    const j=await r.json(); if(!r.ok){alert("作成失敗:"+ (j.error||r.status));return}
-    location.hash="#/edit?formId="+j.formId+"&secret="+new URL(j.editUrl).searchParams.get("secret");
-  }},"作成");
-  set(app, el("div",{}, el("h2",{},"フォーム作成"),
-    el("div",{class:"card"},
-      el("div",{},"開始日"), s,
-      el("div",{},"終了日"), e,
-      el("div",{},"メッセージ"), msg,
-      el("div",{},"候補上限（日数）"), days,
-      el("label",{}, el("input",{type:"checkbox",checked:true,onchange:e=>weekdays.checked=e.target.checked}), " 平日のみ"),
-      el("div",{class:"row"}, btn)
-    )
-  ));
-  return app;
-}
-
-function Edit(q){
-  const app=el("div"); const {formId,secret}=q; if(!formId||!secret){return set(app,el("div",{},"formId/secretがありません")),app}
-  set(app, el("div",{}, el("h2",{},"編集"),
-    el("div",{class:"card"},
-      el("div",{}, "フォームID: ", formId),
-      el("a",{href:"#/vote?formId="+formId},"投票画面へ"),
-      el("div",{class:"muted"},"※ この最小版は“メッセージ編集”を省略しています。必要なら後で追加可能。")
-    )
-  ));
-  return app;
-}
-
-function Vote(q){
-  const app=el("div"); const {formId}=q; if(!formId){return set(app,el("div",{},"formIdがありません")),app}
-  const head=el("div",{class:"card"}, el("h2",{},"投票")); const grid=el("div",{class:"grid"});
-  set(app, el("div",{}, head, el("div",{class:"card"}, grid)));
-  fetch(API+"/forms/"+formId).then(r=>r.json()).then(j=>{
-    head.append(el("div",{class:"muted"}, j.message||""));
-    render(j);
-  }).catch(()=>{ grid.innerHTML="<p>読み込み失敗</p>"; });
-
-  function render(j){
-    grid.innerHTML=""; const voted=store.get(j.formId);
-    j.options.forEach(d=>{
-      const n=j.counts?.[d]||0; const me=voted.includes(d);
-      const b=el("button",{class:me?"pill primary":"pill",onclick:async()=>{
-        if(me){alert("この端末では既に投票済み"); return;}
-        const r=await fetch(API+"/forms/"+j.formId+"/vote",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({date:d})});
-        if(!r.ok){alert("投票失敗");return}
-        store.add(j.formId,d); j.counts[d]=(j.counts[d]||0)+1; render(j);
-      }}, fmtJP(d), el("span",{},"＋"+n));
-      grid.append(b);
-    });
+  const API = '/api';
+  function el(t, a = {}, ...c) {
+    const e = document.createElement(t);
+    for (const [k, v] of Object.entries(a)) {
+      if (k === 'class') e.className = v;
+      else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+      else e.setAttribute(k, v);
+    }
+    for (const x of c) e.append(x.nodeType ? x : document.createTextNode(x));
+    return e;
   }
-  return app;
-}
+  function hash() {
+    return location.hash.split('?')[0] || '#/create';
+  }
+  function qs() {
+    return Object.fromEntries(
+      new URLSearchParams(location.hash.split('?')[1] || '')
+    );
+  }
+  function set(n, d) {
+    n.innerHTML = '';
+    n.append(d);
+  }
+  function fmtJP(iso) {
+    const [Y, M, D] = iso.split('-').map(Number);
+    const dt = new Date(Y, M - 1, D);
+    const w = ['日', '月', '火', '水', '木', '金', '土'][dt.getDay()];
+    return `${M}/${D}(${w})`;
+  }
+  const store = {
+    get(f) {
+      try {
+        return JSON.parse(localStorage.getItem('voted:' + f) || '[]');
+      } catch {
+        return [];
+      }
+    },
+    add(f, d) {
+      const a = this.get(f);
+      if (!a.includes(d)) {
+        a.push(d);
+        localStorage.setItem('voted:' + f, JSON.stringify(a));
+      }
+    },
+    remove(f, d) {
+      const a = this.get(f).filter(x => x !== d);
+      localStorage.setItem('voted:' + f, JSON.stringify(a));
+    },
+  };
 
-function route(){const h=hash(); const q=qs(); if(h==="#/vote")return Vote(q); if(h==="#/edit")return Edit(q); return Create()}
-function render(){set(document.getElementById("app"), route())} window.addEventListener("hashchange", render); render();
+  function Create() {
+    const app = el('div');
+    const s = el('input', { type: 'date' }),
+      e = el('input', { type: 'date' }),
+      msg = el('input', { type: 'text', placeholder: 'メッセージ' });
+    const days = el('input', {
+      type: 'number',
+      value: 10,
+      style: 'width:80px',
+    });
+    const weekdays = el('input', { type: 'checkbox', checked: true });
+    const btn = el(
+      'button',
+      {
+        class: 'primary',
+        onclick: async () => {
+          if (!s.value || !e.value || !msg.value) {
+            alert('開始・終了・メッセージ必須');
+            return;
+          }
+          const r = await fetch(API + '/forms', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              startDate: s.value,
+              endDate: e.value,
+              message: msg.value,
+              days: Number(days.value) || 10,
+              weekdaysOnly: weekdays.checked,
+            }),
+          });
+          const j = await r.json();
+          if (!r.ok) {
+            alert('作成失敗:' + (j.error || r.status));
+            return;
+          }
+          location.hash =
+            '#/edit?formId=' +
+            j.formId +
+            '&secret=' +
+            new URL(j.editUrl).searchParams.get('secret');
+        },
+      },
+      '作成'
+    );
+    set(
+      app,
+      el(
+        'div',
+        {},
+        el('h2', {}, 'フォーム作成'),
+        el(
+          'div',
+          { class: 'card' },
+          el('div', {}, '開始日'),
+          s,
+          el('div', {}, '終了日'),
+          e,
+          el('div', {}, 'メッセージ'),
+          msg,
+          el('div', {}, '候補上限（日数）'),
+          days,
+          el(
+            'label',
+            {},
+            el('input', {
+              type: 'checkbox',
+              checked: true,
+              onchange: e => (weekdays.checked = e.target.checked),
+            }),
+            ' 平日のみ'
+          ),
+          el('div', { class: 'row' }, btn)
+        )
+      )
+    );
+    return app;
+  }
+
+  function Edit(q) {
+    const app = el('div');
+    const { formId, secret } = q;
+    if (!formId || !secret) {
+      return (set(app, el('div', {}, 'formId/secretがありません')), app);
+    }
+    set(
+      app,
+      el(
+        'div',
+        {},
+        el('h2', {}, '編集'),
+        el(
+          'div',
+          { class: 'card' },
+          el('div', {}, 'フォームID: ', formId),
+          el('a', { href: '#/vote?formId=' + formId }, '投票画面へ'),
+          el(
+            'div',
+            { class: 'muted' },
+            '※ この最小版は“メッセージ編集”を省略しています。必要なら後で追加可能。'
+          )
+        )
+      )
+    );
+    return app;
+  }
+
+  function Vote(q) {
+    const app = el('div');
+    const { formId } = q;
+    if (!formId) {
+      return (set(app, el('div', {}, 'formIdがありません')), app);
+    }
+    const head = el('div', { class: 'card' }, el('h2', {}, '投票'));
+    const grid = el('div', { class: 'grid' });
+    set(app, el('div', {}, head, el('div', { class: 'card' }, grid)));
+    fetch(API + '/forms/' + formId)
+      .then(r => r.json())
+      .then(j => {
+        head.append(el('div', { class: 'muted' }, j.message || ''));
+        render(j);
+      })
+      .catch(() => {
+        grid.innerHTML = '<p>読み込み失敗</p>';
+      });
+
+    function render(j) {
+      grid.innerHTML = '';
+      const voted = store.get(j.formId);
+      j.options.forEach(d => {
+        const n = j.counts?.[d] || 0;
+        const me = voted.includes(d);
+        const b = el(
+          'button',
+          {
+            class: me ? 'pill primary' : 'pill',
+            onclick: async () => {
+              if (me) {
+                if (!confirm('投票を取り消しますか？')) return;
+                const r = await fetch(API + '/forms/' + j.formId + '/vote', {
+                  method: 'DELETE',
+                  headers: { 'content-type': 'application/json' },
+                  body: JSON.stringify({ date: d }),
+                });
+                if (!r.ok) {
+                  alert('取り消し失敗');
+                  return;
+                }
+                store.remove(j.formId, d);
+                j.counts[d] = Math.max(0, (j.counts[d] || 0) - 1);
+                render(j);
+                return;
+              }
+              const r = await fetch(API + '/forms/' + j.formId + '/vote', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ date: d }),
+              });
+              if (!r.ok) {
+                alert('投票失敗');
+                return;
+              }
+              store.add(j.formId, d);
+              j.counts[d] = (j.counts[d] || 0) + 1;
+              render(j);
+            },
+          },
+          fmtJP(d),
+          el('span', {}, '＋' + n)
+        );
+        grid.append(b);
+      });
+    }
+    return app;
+  }
+
+  function route() {
+    const h = hash();
+    const q = qs();
+    if (h === '#/vote') return Vote(q);
+    if (h === '#/edit') return Edit(q);
+    return Create();
+  }
+  function render() {
+    set(document.getElementById('app'), route());
+  }
+  window.addEventListener('hashchange', render);
+  render();
 </script>
-
