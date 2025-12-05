@@ -342,9 +342,13 @@
       style: 'width:80px',
     });
     const weekdays = el('input', { type: 'checkbox', checked: true });
-    const errorMsg = el('div', { class: 'error-message' });
+    const errorMsg = el('div', {
+      class: 'error-message',
+      style: 'display: none;',
+    });
     const clearError = () => {
       errorMsg.textContent = '';
+      errorMsg.style.display = 'none';
       [s, e, msg, days, weekdays].forEach(input =>
         input.classList.remove('input-error')
       );
@@ -357,6 +361,7 @@
         onclick: async () => {
           if (!s.value || !e.value) {
             errorMsg.textContent = '開始日と終了日は必須です';
+            errorMsg.style.display = 'block';
             if (!s.value) s.classList.add('input-error');
             if (!e.value) e.classList.add('input-error');
             return;
@@ -420,7 +425,7 @@
           el(
             'div',
             { class: 'form-group' },
-            el('label', { for: daysId }, '投票できる最大の日数'),
+            el('label', { for: daysId }, '投票できる最大の日数（省略可）'),
             days
           ),
           el(
