@@ -354,14 +354,14 @@ button.primary:hover {
 }
 
 .date-cell.vote-tier-top:not(.active) {
-  background: #c6f6d5;
-  border-color: #97e3b5;
+  background: linear-gradient(180deg, #c4f7da 0%, #b8f3d0 100%);
+  border-color: #8fdaae;
   color: var(--text-strong);
 }
 
 .date-cell.vote-tier-top:not(.active):hover {
-  background: #b7f0c6;
-  border-color: #7fd6a2;
+  background: linear-gradient(180deg, #bdf3d3 0%, #adebc7 100%);
+  border-color: #7ad29e;
 }
 
 .date-cell.vote-tier-medium:not(.active) .date-label,
@@ -393,9 +393,9 @@ button.primary:hover {
 }
 
 .date-cell.vote-tier-top:not(.active) .pill-badge {
-  background: #c1efd0;
+  background: #b5eccc;
   color: #1f5f3c;
-  border-color: #8ad4aa;
+  border-color: #84d2a6;
   --badge-scale: 1.06;
 }
 
