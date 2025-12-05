@@ -39,6 +39,20 @@
     grid-template-columns: repeat(7, minmax(100px, 1fr));
     gap: 8px;
   }
+  .url-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .url-input {
+    font-family: monospace;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    width: fit-content;
+    max-width: 100%;
+  }
   .pill {
     border: 1px solid #bbb;
     padding: 6px 8px;
@@ -82,6 +96,28 @@
     const w = ['日', '月', '火', '水', '木', '金', '土'][dt.getDay()];
     return `${M}/${D} (${w})`;
   }
+  const formStore = {
+    get(formId) {
+      try {
+        return JSON.parse(localStorage.getItem('form:' + formId));
+      } catch {
+        return null;
+      }
+    },
+    save(formId, secret) {
+      if (!formId || !secret) return;
+      const payload = {
+        formId,
+        secret,
+        createdAt: Date.now(),
+      };
+      try {
+        localStorage.setItem('form:' + formId, JSON.stringify(payload));
+      } catch {
+        /* ignore */
+      }
+    },
+  };
   const store = {
     get(f) {
       try {
@@ -139,11 +175,14 @@
             alert('作成失敗:' + (j.error || r.status));
             return;
           }
-          location.hash =
-            '#/edit?formId=' +
-            j.formId +
-            '&secret=' +
-            new URL(j.editUrl).searchParams.get('secret');
+          // editUrl already includes formId/secret in the hash fragment; no need to parse as a full URL
+          const h = j.editUrl?.split('#')[1];
+          const secret =
+            h && h.includes('?')
+              ? new URLSearchParams(h.split('?')[1]).get('secret')
+              : null;
+          formStore.save(j.formId, secret);
+          location.hash = h ? '#' + h : `#/edit?formId=${j.formId}`;
         },
       },
       '作成'
@@ -184,10 +223,50 @@
 
   function Edit(q) {
     const app = el('div');
-    const { formId, secret } = q;
-    if (!formId || !secret) {
-      return (set(app, el('div', {}, 'formId/secretがありません')), app);
+    const { formId, secret: urlSecret } = q;
+    if (!formId) {
+      return (set(app, el('div', {}, 'formIdがありません')), app);
     }
+
+    let secret = urlSecret;
+    if (!secret) {
+      const saved = formStore.get(formId);
+      if (saved?.secret) {
+        location.hash = `#/edit?formId=${formId}&secret=${saved.secret}`;
+        return app;
+      }
+      return (
+        set(
+          app,
+          el('div', {}, 'secretがありません。作成時のURLを使用してください。')
+        ),
+        app
+      );
+    }
+    const editUrl = `${location.origin}${location.pathname}#/edit?formId=${formId}&secret=${secret}`;
+    const urlInput = el('input', {
+      type: 'text',
+      value: editUrl,
+      readonly: true,
+      class: 'url-input',
+    });
+    urlInput.size = Math.min(Math.max(editUrl.length + 2, 40), 140);
+    const copyBtn = el(
+      'button',
+      {
+        onclick: async () => {
+          try {
+            await navigator.clipboard.writeText(editUrl);
+          } catch (e) {
+            urlInput.select();
+            document.execCommand('copy');
+          }
+          copyBtn.textContent = 'コピー済み';
+          setTimeout(() => (copyBtn.textContent = 'コピー'), 1200);
+        },
+      },
+      'コピー'
+    );
     set(
       app,
       el(
@@ -199,6 +278,18 @@
           { class: 'card' },
           el('div', {}, 'フォームID: ', formId),
           el('a', { href: '#/vote?formId=' + formId }, '投票画面へ'),
+          el(
+            'div',
+            { class: 'url-row' },
+            el('div', {}, '編集用URL:'),
+            urlInput,
+            copyBtn
+          ),
+          el(
+            'div',
+            { class: 'muted' },
+            '※ この URL をブックマークまたは保存してください'
+          ),
           el(
             'div',
             { class: 'muted' },
