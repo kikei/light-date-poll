@@ -133,7 +133,6 @@
     cursor: pointer;
     min-height: 60px;
     transition:
-      transform 140ms ease,
       border-color 140ms ease,
       box-shadow 140ms ease,
       background 140ms ease,
@@ -141,7 +140,6 @@
   }
 
   .date-cell:hover {
-    transform: translateY(-1px);
     background: #f8faff;
     border-color: #c8def4;
     box-shadow: 0 4px 10px -6px rgba(9, 30, 66, 0.3);
@@ -304,10 +302,9 @@
     line-height: 1;
     transform: scale(var(--badge-scale, 1));
     transition:
-      background 140ms ease,
-      border-color 140ms ease,
-      color 140ms ease,
-      transform 140ms ease;
+      background 160ms ease,
+      border-color 160ms ease,
+      color 160ms ease;
   }
 
   .pill.active .pill-badge {
