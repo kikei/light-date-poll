@@ -9,6 +9,9 @@
     --blue-hover: #0065ff;
     --green-success: #00875a;
     --red-danger: #de350b;
+    --warning-text: #8f5b00;
+    --warning-border: #ffe2b0;
+    --warning-bg: #fff7e6;
     --text-strong: #091e42;
     --text-muted: #6b778c;
     --border: #dfe1e6;
@@ -245,6 +248,30 @@
     background: #f7f8f9;
     border-radius: 4px;
     border: 1px solid var(--border);
+  }
+
+  .status-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+    min-height: 32px;
+  }
+
+  .status-row > *:first-child {
+    flex: 1 1 auto;
+  }
+
+  .vote-status {
+    font-weight: 600;
+  }
+
+  .vote-counter {
+    white-space: nowrap;
+    color: var(--text-muted);
+    font-weight: 600;
+    flex-shrink: 0;
   }
 </style>
 <div id="app"></div>
@@ -524,11 +551,38 @@
     }
     const head = el('div', { class: 'card' }, el('h2', {}, '投票'));
     const grid = el('div', { class: 'grid' });
-    const limitMsg = el('div', {
-      class: 'error-message',
-      style: 'display: none;',
-    });
-    set(app, el('div', {}, head, el('div', { class: 'card' }, limitMsg, grid)));
+    const normalMessage = '日付を選択して下さい。';
+    const warningMessage = 'これ以上、選択できません。';
+    const voteStatus = el('div', { class: 'vote-status' }, normalMessage);
+    const voteCounter = el('div', { class: 'vote-counter' });
+    const statusRow = el(
+      'div',
+      { class: 'status-row' },
+      voteStatus,
+      voteCounter
+    );
+    let warningTimer = null;
+    const setNormalStatus = () => {
+      voteStatus.textContent = normalMessage;
+    };
+    const showWarning = () => {
+      voteStatus.textContent = warningMessage;
+      clearTimeout(warningTimer);
+      warningTimer = setTimeout(setNormalStatus, 3000);
+    };
+    const updateCounter = (remaining, maxVotes) => {
+      if (maxVotes === null) {
+        voteCounter.style.display = 'none';
+        voteCounter.textContent = '';
+        return;
+      }
+      voteCounter.style.display = '';
+      voteCounter.textContent = `残り ${remaining}/${maxVotes}`;
+    };
+    set(
+      app,
+      el('div', {}, head, el('div', { class: 'card' }, statusRow, grid))
+    );
     fetch(API + '/forms/' + formId)
       .then(r => r.json())
       .then(j => {
@@ -541,17 +595,16 @@
 
     function render(j) {
       grid.innerHTML = '';
+      clearTimeout(warningTimer);
+      setNormalStatus();
       const voted = store.get(j.formId);
       const voteCount = voted.length;
       const maxVotes =
         j.maxVotes === undefined || j.maxVotes === null ? null : j.maxVotes;
+      const remainingVotes =
+        maxVotes === null ? null : Math.max(maxVotes - voteCount, 0);
       const limitReached = maxVotes !== null && voteCount >= maxVotes;
-      if (limitReached) {
-        limitMsg.textContent = `投票上限に達しました（${voteCount}/${maxVotes}日）`;
-        limitMsg.style.display = 'block';
-      } else {
-        limitMsg.style.display = 'none';
-      }
+      updateCounter(remainingVotes, maxVotes);
       j.options.forEach(d => {
         const n = j.counts?.[d] || 0;
         const me = voted.includes(d);
@@ -559,9 +612,11 @@
           'button',
           {
             class: me ? 'pill active' : 'pill',
-            disabled: !me && limitReached,
             onclick: async () => {
-              if (!me && limitReached) return;
+              if (!me && limitReached) {
+                showWarning();
+                return;
+              }
               if (me) {
                 const r = await fetch(API + '/forms/' + j.formId + '/vote', {
                   method: 'DELETE',
