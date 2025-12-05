@@ -334,41 +334,44 @@
   }
 
   .date-cell.vote-tier-medium:not(.active) {
-    background: linear-gradient(135deg, #f6faff 0%, #eef3fb 100%);
-    border-color: #c8def4;
+    background: linear-gradient(135deg, #b3d4ff 0%, #c5ddff 100%);
+    border-color: #8fb7ff;
+    color: #0f2f66;
   }
 
   .calendar-cell.vote-medium:hover,
   .date-cell.vote-tier-medium:not(.active):hover {
-    background: linear-gradient(135deg, #eaf2ff 0%, #dce7fb 100%);
-    border-color: #a8bfdc;
-    box-shadow: 0 5px 12px -9px rgba(9, 30, 66, 0.3);
+    background: linear-gradient(135deg, #a6c7ff 0%, #b7d0ff 100%);
+    border-color: #7aa6ff;
+    box-shadow: 0 5px 12px -9px rgba(9, 30, 66, 0.32);
   }
 
   .calendar-cell.vote-high,
   .date-cell.vote-tier-high:not(.active) {
-    background: linear-gradient(135deg, #f9fbff 0%, #eef3fb 100%);
-    border-color: #c2d5f5;
-    box-shadow: 0 3px 10px -8px rgba(9, 30, 66, 0.28);
+    background: #388bff;
+    border-color: #2563eb;
+    box-shadow: 0 6px 14px -9px rgba(37, 99, 235, 0.45);
+    color: #fff;
   }
 
   .calendar-cell.vote-high:hover,
   .date-cell.vote-tier-high:not(.active):hover {
-    background: linear-gradient(135deg, #f2f6ff 0%, #e3ecf9 100%);
-    border-color: #9fb8ed;
-    box-shadow: 0 6px 14px -9px rgba(9, 30, 66, 0.32);
+    background: #2f74d8;
+    border-color: #1e40af;
+    box-shadow: 0 8px 18px -10px rgba(30, 64, 175, 0.5);
   }
 
   .date-cell.vote-tier-top:not(.active) {
-    background: linear-gradient(135deg, #e8fbf1 0%, #d8eaff 100%);
-    border-color: #57d9a3;
-    box-shadow: 0 6px 14px -8px rgba(0, 135, 90, 0.35);
+    background: #36b37e;
+    border-color: #2b8f65;
+    box-shadow: 0 10px 22px -10px rgba(43, 143, 101, 0.55);
+    color: #fff;
   }
 
   .date-cell.vote-tier-top:not(.active):hover {
-    background: linear-gradient(135deg, #ddf7ec 0%, #cfe2ff 100%);
-    border-color: #36b37e;
-    box-shadow: 0 8px 18px -10px rgba(0, 135, 90, 0.42);
+    background: #2f9c6e;
+    border-color: #257a58;
+    box-shadow: 0 12px 26px -10px rgba(37, 122, 88, 0.6);
   }
 
   .date-cell.vote-tier-medium:not(.active) .date-label,
@@ -378,7 +381,7 @@
 
   .date-cell.vote-tier-top:not(.active) .date-label {
     font-weight: 800;
-    color: #0b3c26;
+    color: #fff;
   }
 
   .date-cell.vote-tier-low:not(.active) .pill-badge {
@@ -388,21 +391,22 @@
   }
 
   .date-cell.vote-tier-medium:not(.active) .pill-badge {
-    background: #e3edff;
-    color: #0747a6;
-    border-color: #b6c9f1;
+    background: #cfe0ff;
+    color: #0f2f66;
+    border-color: #8fb7ff;
   }
 
   .date-cell.vote-tier-high:not(.active) .pill-badge {
-    background: #dff2ff;
-    color: #043d75;
-    border-color: #9dc5ff;
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.32);
   }
 
   .date-cell.vote-tier-top:not(.active) .pill-badge {
-    background: #dff8ed;
-    color: #006644;
-    border-color: #57d9a3;
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.32);
+    --badge-scale: 1.06;
   }
 
   .muted {
