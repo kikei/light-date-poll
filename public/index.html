@@ -90,6 +90,104 @@
     gap: 12px;
   }
 
+  .calendar {
+    display: grid;
+    gap: 12px;
+  }
+
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(100px, 1fr));
+    gap: 12px;
+  }
+
+  .calendar-header {
+    text-align: center;
+    color: var(--text-muted);
+    font-weight: 700;
+    font-size: 13px;
+  }
+
+  .day-label {
+    padding: 6px 4px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .day-label.sunday {
+    color: #c0392b;
+  }
+
+  .day-label.saturday {
+    color: #1f4b99;
+  }
+
+  .date-cell {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    cursor: pointer;
+    min-height: 60px;
+    transition:
+      transform 140ms ease,
+      border-color 140ms ease,
+      box-shadow 140ms ease,
+      background 140ms ease,
+      color 140ms ease;
+  }
+
+  .date-cell:hover {
+    transform: translateY(-1px);
+    background: #f8faff;
+    border-color: #c8def4;
+    box-shadow: 0 4px 10px -6px rgba(9, 30, 66, 0.3);
+  }
+
+  .date-cell:focus-visible {
+    outline: none;
+    border-color: var(--blue-primary);
+    box-shadow: 0 0 0 2px rgba(0, 82, 204, 0.25);
+  }
+
+  .date-cell.active {
+    background: var(--blue-primary);
+    border-color: var(--blue-primary);
+    color: #fff;
+    box-shadow: 0 6px 16px -8px rgba(0, 82, 204, 0.6);
+  }
+
+  .date-cell.active:hover {
+    background: #0747a6;
+    border-color: #0747a6;
+  }
+
+  .date-cell.disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+  }
+
+  .date-cell.sunday:not(.active) {
+    background: #fff7f7;
+    border-color: #ffdede;
+  }
+
+  .date-cell.saturday:not(.active) {
+    background: #f7f9ff;
+    border-color: #dce6ff;
+  }
+
+  .date-label {
+    font-weight: 700;
+  }
+
+  .date-cell.active .date-label {
+    color: #fff;
+  }
+
   input,
   textarea,
   select {
@@ -207,6 +305,12 @@
   }
 
   .pill.active .pill-badge {
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.24);
+  }
+
+  .date-cell.active .pill-badge {
     background: rgba(255, 255, 255, 0.16);
     color: #fff;
     border-color: rgba(255, 255, 255, 0.24);
@@ -550,7 +654,24 @@
       return (set(app, el('div', {}, 'formIdがありません')), app);
     }
     const head = el('div', { class: 'card' }, el('h2', {}, '投票'));
-    const grid = el('div', { class: 'grid' });
+    const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+    const headerRow = el('div', { class: 'calendar-grid calendar-header' });
+    dayNames.forEach((name, idx) =>
+      headerRow.append(
+        el(
+          'div',
+          {
+            class:
+              'day-label' +
+              (idx === 0 ? ' sunday' : '') +
+              (idx === 6 ? ' saturday' : ''),
+          },
+          name
+        )
+      )
+    );
+    const grid = el('div', { class: 'calendar-grid' });
+    const calendar = el('div', { class: 'calendar' }, headerRow, grid);
     const normalMessage = '日付を選択して下さい。';
     const warningMessage = 'これ以上、選択できません。';
     const voteStatus = el('div', { class: 'vote-status' }, normalMessage);
@@ -581,7 +702,7 @@
     };
     set(
       app,
-      el('div', {}, head, el('div', { class: 'card' }, statusRow, grid))
+      el('div', {}, head, el('div', { class: 'card' }, statusRow, calendar))
     );
     fetch(API + '/forms/' + formId)
       .then(r => r.json())
@@ -608,45 +729,74 @@
       j.options.forEach(d => {
         const n = j.counts?.[d] || 0;
         const me = voted.includes(d);
+        const [year, month, day] = d.split('-').map(Number);
+        const dayOfWeek = new Date(year, month - 1, day).getDay();
+        const isSunday = dayOfWeek === 0;
+        const isSaturday = dayOfWeek === 6;
+        const isDisabled = limitReached && !me;
+        const handleVote = async () => {
+          if (!me && limitReached) {
+            showWarning();
+            return;
+          }
+          if (me) {
+            const r = await fetch(API + '/forms/' + j.formId + '/vote', {
+              method: 'DELETE',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ date: d }),
+            });
+            if (!r.ok) {
+              alert('取り消し失敗');
+              return;
+            }
+            store.remove(j.formId, d);
+            j.counts[d] = Math.max(0, (j.counts[d] || 0) - 1);
+            render(j);
+            return;
+          }
+          const r = await fetch(API + '/forms/' + j.formId + '/vote', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ date: d }),
+          });
+          if (!r.ok) {
+            alert('投票失敗');
+            return;
+          }
+          store.add(j.formId, d);
+          j.counts[d] = (j.counts[d] || 0) + 1;
+          render(j);
+        };
         const b = el(
-          'button',
+          'div',
           {
-            class: me ? 'pill active' : 'pill',
-            onclick: async () => {
-              if (!me && limitReached) {
+            class:
+              'date-cell' +
+              (me ? ' active' : '') +
+              (isSunday ? ' sunday' : '') +
+              (isSaturday ? ' saturday' : '') +
+              (isDisabled ? ' disabled' : ''),
+            style: `grid-column: ${dayOfWeek + 1}`,
+            role: 'button',
+            tabIndex: isDisabled ? -1 : 0,
+            'aria-pressed': me,
+            'aria-disabled': isDisabled,
+            onclick: () => {
+              if (isDisabled) {
                 showWarning();
                 return;
               }
-              if (me) {
-                const r = await fetch(API + '/forms/' + j.formId + '/vote', {
-                  method: 'DELETE',
-                  headers: { 'content-type': 'application/json' },
-                  body: JSON.stringify({ date: d }),
-                });
-                if (!r.ok) {
-                  alert('取り消し失敗');
-                  return;
-                }
-                store.remove(j.formId, d);
-                j.counts[d] = Math.max(0, (j.counts[d] || 0) - 1);
-                render(j);
-                return;
+              handleVote();
+            },
+            onkeydown: e => {
+              if (isDisabled) return;
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleVote();
               }
-              const r = await fetch(API + '/forms/' + j.formId + '/vote', {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({ date: d }),
-              });
-              if (!r.ok) {
-                alert('投票失敗');
-                return;
-              }
-              store.add(j.formId, d);
-              j.counts[d] = (j.counts[d] || 0) + 1;
-              render(j);
             },
           },
-          fmtJP(d),
+          el('div', { class: 'date-label' }, fmtJP(d)),
           el('span', { class: 'pill-badge' }, String(n))
         );
         grid.append(b);
