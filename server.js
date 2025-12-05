@@ -58,9 +58,13 @@ async function migrate() {
       message  TEXT NOT NULL,
       options  JSONB NOT NULL,          -- ["2025-09-24", ...]
       secret   TEXT NOT NULL,           -- 編集URL用トークン
+      max_votes INTEGER,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `);
+  await pool.query(
+    'ALTER TABLE forms ADD COLUMN IF NOT EXISTS max_votes INTEGER;'
+  );
   await pool.query(`
     CREATE TABLE IF NOT EXISTS counts(
       form_id TEXT NOT NULL,
@@ -94,20 +98,13 @@ function toISO(d) {
     dd = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${dd}`;
 }
-function pickDates(startDate, endDate, limit = 10, weekdaysOnly = true) {
+function pickDates(startDate, endDate) {
   const out = [],
     s = new Date(startDate),
     e = new Date(endDate);
   s.setHours(0, 0, 0, 0);
   e.setHours(0, 0, 0, 0);
-  const max = Math.max(0, Math.floor(limit) || 0);
-  for (
-    let d = new Date(s);
-    d <= e && out.length < max;
-    d.setDate(d.getDate() + 1)
-  ) {
-    const w = d.getDay(); // 0:日 6:土
-    if (weekdaysOnly && (w === 0 || w === 6)) continue;
+  for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
     out.push(toISO(d));
   }
   return out;
@@ -116,13 +113,7 @@ function pickDates(startDate, endDate, limit = 10, weekdaysOnly = true) {
 // 作成
 app.post('/api/forms', async (req, res) => {
   try {
-    const {
-      startDate,
-      endDate,
-      message,
-      days,
-      weekdaysOnly = true,
-    } = req.body || {};
+    const { startDate, endDate, message, days } = req.body || {};
     if (!startDate || !endDate)
       return res
         .status(400)
@@ -139,18 +130,13 @@ app.post('/api/forms', async (req, res) => {
 
     const formId = rid();
     const secret = rsecret();
-    const dateLimit = clampDays(days);
-    const options = pickDates(
-      range.startDate,
-      range.endDate,
-      dateLimit,
-      !!weekdaysOnly
-    );
+    const maxVotes = days == null ? null : clampDays(days);
+    const options = pickDates(range.startDate, range.endDate);
 
     await pool.query('BEGIN');
     await pool.query(
-      'INSERT INTO forms(form_id, message, options, secret) VALUES($1,$2,$3,$4)',
-      [formId, safeMessage, JSON.stringify(options), secret]
+      'INSERT INTO forms(form_id, message, options, secret, max_votes) VALUES($1,$2,$3,$4,$5)',
+      [formId, safeMessage, JSON.stringify(options), secret, maxVotes]
     );
     if (options.length) {
       const values = options.map((_, i) => `($1, $${i + 2}, 0)`).join(',');
@@ -182,7 +168,7 @@ app.get('/api/forms/:id', async (req, res) => {
   if (!isValidFormId(id))
     return res.status(400).json({ error: 'invalid formId' });
   const f = await pool.query(
-    'SELECT message, options FROM forms WHERE form_id=$1',
+    'SELECT message, options, max_votes FROM forms WHERE form_id=$1',
     [id]
   );
   if (!f.rowCount) return res.status(404).json({ error: 'not_found' });
@@ -197,6 +183,7 @@ app.get('/api/forms/:id', async (req, res) => {
     formId: id,
     message: f.rows[0].message,
     options: f.rows[0].options,
+    maxVotes: f.rows[0].max_votes ?? null,
     counts,
   });
 });

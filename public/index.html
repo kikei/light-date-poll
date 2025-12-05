@@ -341,7 +341,6 @@
       value: '',
       style: 'width:80px',
     });
-    const weekdays = el('input', { type: 'checkbox', checked: true });
     const errorMsg = el('div', {
       class: 'error-message',
       style: 'display: none;',
@@ -349,9 +348,7 @@
     const clearError = () => {
       errorMsg.textContent = '';
       errorMsg.style.display = 'none';
-      [s, e, msg, days, weekdays].forEach(input =>
-        input.classList.remove('input-error')
-      );
+      [s, e, msg, days].forEach(input => input.classList.remove('input-error'));
     };
     [s, e].forEach(input => input.addEventListener('input', clearError));
     const btn = el(
@@ -374,8 +371,7 @@
               startDate: s.value,
               endDate: e.value,
               message: msg.value || '',
-              days: days.value === '' ? null : Number(days.value),
-              weekdaysOnly: weekdays.checked,
+              days: days.value === '' ? null : days.value,
             }),
           });
           const j = await r.json();
@@ -427,20 +423,6 @@
             { class: 'form-group' },
             el('label', { for: daysId }, '投票できる最大の日数（省略可）'),
             days
-          ),
-          el(
-            'div',
-            { class: 'form-group' },
-            el(
-              'label',
-              {},
-              el('input', {
-                type: 'checkbox',
-                checked: true,
-                onchange: e => (weekdays.checked = e.target.checked),
-              }),
-              ' 平日のみ'
-            )
           ),
           errorMsg,
           el('div', { class: 'row' }, btn)
@@ -539,7 +521,11 @@
     }
     const head = el('div', { class: 'card' }, el('h2', {}, '投票'));
     const grid = el('div', { class: 'grid' });
-    set(app, el('div', {}, head, el('div', { class: 'card' }, grid)));
+    const limitMsg = el('div', {
+      class: 'error-message',
+      style: 'display: none;',
+    });
+    set(app, el('div', {}, head, el('div', { class: 'card' }, limitMsg, grid)));
     fetch(API + '/forms/' + formId)
       .then(r => r.json())
       .then(j => {
@@ -553,6 +539,16 @@
     function render(j) {
       grid.innerHTML = '';
       const voted = store.get(j.formId);
+      const voteCount = voted.length;
+      const maxVotes =
+        j.maxVotes === undefined || j.maxVotes === null ? null : j.maxVotes;
+      const limitReached = maxVotes !== null && voteCount >= maxVotes;
+      if (limitReached) {
+        limitMsg.textContent = `投票上限に達しました（${voteCount}/${maxVotes}日）`;
+        limitMsg.style.display = 'block';
+      } else {
+        limitMsg.style.display = 'none';
+      }
       j.options.forEach(d => {
         const n = j.counts?.[d] || 0;
         const me = voted.includes(d);
@@ -560,7 +556,9 @@
           'button',
           {
             class: me ? 'pill active' : 'pill',
+            disabled: !me && limitReached,
             onclick: async () => {
+              if (!me && limitReached) return;
               if (me) {
                 const r = await fetch(API + '/forms/' + j.formId + '/vote', {
                   method: 'DELETE',
