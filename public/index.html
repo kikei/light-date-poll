@@ -302,6 +302,12 @@
     font-weight: 700;
     border: 1px solid #c8def4;
     line-height: 1;
+    transform: scale(var(--badge-scale, 1));
+    transition:
+      background 140ms ease,
+      border-color 140ms ease,
+      color 140ms ease,
+      transform 140ms ease;
   }
 
   .pill.active .pill-badge {
@@ -314,6 +320,61 @@
     background: rgba(255, 255, 255, 0.16);
     color: #fff;
     border-color: rgba(255, 255, 255, 0.24);
+  }
+
+  .date-cell.active .pill-badge {
+    transform: scale(1);
+  }
+
+  .date-cell.vote-tier-medium:not(.active) {
+    background: linear-gradient(135deg, #f6faff 0%, #eef3fb 100%);
+    border-color: #c8def4;
+  }
+
+  .date-cell.vote-tier-high:not(.active) {
+    background: linear-gradient(135deg, #f2f8ff 0%, #e3f1ff 100%);
+    border-color: #a6c8ff;
+    box-shadow: 0 4px 10px -8px rgba(9, 30, 66, 0.35);
+  }
+
+  .date-cell.vote-tier-top:not(.active) {
+    background: linear-gradient(135deg, #e8fbf1 0%, #d8eaff 100%);
+    border-color: #57d9a3;
+    box-shadow: 0 6px 14px -8px rgba(0, 135, 90, 0.35);
+  }
+
+  .date-cell.vote-tier-medium:not(.active) .date-label,
+  .date-cell.vote-tier-high:not(.active) .date-label {
+    font-weight: 700;
+  }
+
+  .date-cell.vote-tier-top:not(.active) .date-label {
+    font-weight: 800;
+    color: #0b3c26;
+  }
+
+  .date-cell.vote-tier-low:not(.active) .pill-badge {
+    background: #eceff4;
+    color: #42526e;
+    border-color: #d9dde3;
+  }
+
+  .date-cell.vote-tier-medium:not(.active) .pill-badge {
+    background: #e3edff;
+    color: #0747a6;
+    border-color: #b6c9f1;
+  }
+
+  .date-cell.vote-tier-high:not(.active) .pill-badge {
+    background: #dff2ff;
+    color: #043d75;
+    border-color: #9dc5ff;
+  }
+
+  .date-cell.vote-tier-top:not(.active) .pill-badge {
+    background: #dff8ed;
+    color: #006644;
+    border-color: #57d9a3;
   }
 
   .muted {
@@ -724,8 +785,26 @@
         maxVotes === null ? null : Math.max(maxVotes - voteCount, 0);
       const limitReached = maxVotes !== null && voteCount >= maxVotes;
       updateCounter(remainingVotes, maxVotes);
+      j.counts = j.counts || {};
+      const counts = j.counts;
+      const maxCount = j.options.reduce(
+        (max, date) => Math.max(max, counts[date] || 0),
+        0
+      );
+      const voteTier = (count, max) => {
+        if (max <= 0) return 'vote-tier-low';
+        const ratio = count / max;
+        if (ratio >= 0.75) return 'vote-tier-top';
+        if (ratio >= 0.5) return 'vote-tier-high';
+        if (ratio >= 0.25) return 'vote-tier-medium';
+        return 'vote-tier-low';
+      };
       j.options.forEach(d => {
-        const n = j.counts?.[d] || 0;
+        const n = counts[d] || 0;
+        const ratio = maxCount > 0 ? n / maxCount : 0;
+        const tierClass = voteTier(n, maxCount);
+        const badgeScale =
+          maxCount > 0 ? 0.92 + ratio * 0.16 : 1; /* keep subtle */
         const me = voted.includes(d);
         const [year, month, day] = d.split('-').map(Number);
         const dayOfWeek = new Date(year, month - 1, day).getDay();
@@ -773,7 +852,8 @@
               (me ? ' active' : '') +
               (isSunday ? ' sunday' : '') +
               (isSaturday ? ' saturday' : '') +
-              (isDisabled ? ' disabled' : ''),
+              (isDisabled ? ' disabled' : '') +
+              (tierClass ? ' ' + tierClass : ''),
             style: `grid-column: ${dayOfWeek + 1}`,
             role: 'button',
             tabIndex: isDisabled ? -1 : 0,
@@ -795,7 +875,14 @@
             },
           },
           el('div', { class: 'date-label' }, fmtJP(d)),
-          el('span', { class: 'pill-badge' }, String(n))
+          el(
+            'span',
+            {
+              class: 'pill-badge',
+              style: `--badge-scale: ${badgeScale.toFixed(3)}`,
+            },
+            String(n)
+          )
         );
         grid.append(b);
       });
