@@ -255,6 +255,9 @@
     for (const [k, v] of Object.entries(a)) {
       if (k === 'class') e.className = v;
       else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+      // Booleans need property assignment; setAttribute('disabled', false) still disables the element.
+      else if (typeof v === 'boolean')
+        k in e ? (e[k] = v) : v && e.setAttribute(k, '');
       else e.setAttribute(k, v);
     }
     for (const x of c) e.append(x.nodeType ? x : document.createTextNode(x));
