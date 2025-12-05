@@ -83,25 +83,26 @@ app.post('/api/forms', async (req, res) => {
       startDate,
       endDate,
       message,
-      days = 10,
+      days,
       weekdaysOnly = true,
     } = req.body || {};
-    if (!startDate || !endDate || !message)
+    if (!startDate || !endDate)
       return res.status(400).json({ error: 'missing fields' });
 
     const formId = rid();
     const secret = rsecret();
+    const dateLimit = days != null ? Number(days) : Infinity;
     const options = pickDates(
       startDate,
       endDate,
-      Number(days) || 10,
+      dateLimit || Infinity,
       !!weekdaysOnly
     );
 
     await pool.query('BEGIN');
     await pool.query(
       'INSERT INTO forms(form_id, message, options, secret) VALUES($1,$2,$3,$4)',
-      [formId, message, JSON.stringify(options), secret]
+      [formId, message || '', JSON.stringify(options), secret]
     );
     if (options.length) {
       const values = options.map((_, i) => `($1, $${i + 2}, 0)`).join(',');

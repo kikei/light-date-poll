@@ -64,6 +64,15 @@
   .muted {
     color: #666;
   }
+  .error-message {
+    color: #d32f2f;
+    margin: 8px 0;
+    font-size: 14px;
+  }
+  .input-error {
+    border-color: #d32f2f;
+    outline: 2px solid #ffcdd2;
+  }
 </style>
 <div id="app"></div>
 <script>
@@ -141,32 +150,44 @@
 
   function Create() {
     const app = el('div');
-    const s = el('input', { type: 'date' }),
+    const today = new Date().toISOString().split('T')[0];
+    const s = el('input', { type: 'date', value: today }),
       e = el('input', { type: 'date' }),
       msg = el('input', { type: 'text', placeholder: 'メッセージ' });
     const days = el('input', {
       type: 'number',
-      value: 10,
+      value: '',
       style: 'width:80px',
     });
     const weekdays = el('input', { type: 'checkbox', checked: true });
+    const errorMsg = el('div', { class: 'error-message' });
+    const clearError = () => {
+      errorMsg.textContent = '';
+      [s, e, msg, days, weekdays].forEach(input =>
+        input.classList.remove('input-error')
+      );
+    };
+    [s, e].forEach(input => input.addEventListener('input', clearError));
     const btn = el(
       'button',
       {
         class: 'primary',
         onclick: async () => {
-          if (!s.value || !e.value || !msg.value) {
-            alert('開始・終了・メッセージ必須');
+          if (!s.value || !e.value) {
+            errorMsg.textContent = '開始日と終了日は必須です';
+            if (!s.value) s.classList.add('input-error');
+            if (!e.value) e.classList.add('input-error');
             return;
           }
+          clearError();
           const r = await fetch(API + '/forms', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({
               startDate: s.value,
               endDate: e.value,
-              message: msg.value,
-              days: Number(days.value) || 10,
+              message: msg.value || '',
+              days: days.value === '' ? null : Number(days.value),
               weekdaysOnly: weekdays.checked,
             }),
           });
@@ -202,7 +223,7 @@
           e,
           el('div', {}, 'メッセージ'),
           msg,
-          el('div', {}, '候補上限（日数）'),
+          el('div', {}, '投票できる最大の日数'),
           days,
           el(
             'label',
@@ -214,6 +235,7 @@
             }),
             ' 平日のみ'
           ),
+          errorMsg,
           el('div', { class: 'row' }, btn)
         )
       )
