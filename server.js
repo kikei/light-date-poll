@@ -259,8 +259,8 @@ app.delete('/api/forms/:id/vote', async (req, res) => {
   res.json({ ok: true });
 });
 
-// 単一HTML
-app.get('*', (_, res) => {
+// 単一HTML (catch-all route for SPA)
+app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'public/index.html'));
 });
 
