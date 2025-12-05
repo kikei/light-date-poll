@@ -239,7 +239,6 @@
             class: me ? 'pill primary' : 'pill',
             onclick: async () => {
               if (me) {
-                if (!confirm('投票を取り消しますか？')) return;
                 const r = await fetch(API + '/forms/' + j.formId + '/vote', {
                   method: 'DELETE',
                   headers: { 'content-type': 'application/json' },
