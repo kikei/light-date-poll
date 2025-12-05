@@ -407,10 +407,8 @@
     n.append(d);
   }
   function fmtJP(iso) {
-    const [Y, M, D] = iso.split('-').map(Number);
-    const dt = new Date(Y, M - 1, D);
-    const w = ['日', '月', '火', '水', '木', '金', '土'][dt.getDay()];
-    return `${M}/${D} (${w})`;
+    const [, M, D] = iso.split('-').map(Number);
+    return `${M}/${D}`;
   }
   const formStore = {
     get(formId) {
