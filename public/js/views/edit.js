@@ -76,7 +76,7 @@ export function Edit(q) {
       rel: 'noopener',
       class: 'button-link',
     },
-    '開く'
+    '開く ↗'
   );
   const copyBtn = createCopyButton(editUrl, urlInput);
   const messageCard = el(
@@ -94,15 +94,15 @@ export function Edit(q) {
     el(
       'div',
       {},
-      el('h2', {}, '編集'),
+      el('h2', {}, 'フォーム編集'),
       el(
         'div',
         { class: 'card' },
-        el('h3', {}, '概要'),
+        el('h3', {}, '投票の概要'),
         el(
           'div',
           { class: 'form-group' },
-          el('label', { for: voteUrlId }, '投票用URL'),
+          el('label', { for: voteUrlId }, '投票 URL'),
           el(
             'div',
             { class: 'url-row' },
@@ -114,7 +114,7 @@ export function Edit(q) {
         el(
           'div',
           { class: 'form-group' },
-          el('label', { for: editUrlId }, '編集用URL'),
+          el('label', { for: editUrlId }, '編集 URL'),
           el('div', { class: 'url-row' }, urlInput, copyBtn)
         )
       ),
