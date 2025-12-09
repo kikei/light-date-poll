@@ -33,6 +33,8 @@ export function Vote(q) {
     }
   })();
 
+  let processingDate = null;
+
   function render(j) {
     const voted = voteStore.get(j.formId);
     const voteCount = voted.length;
@@ -42,33 +44,25 @@ export function Vote(q) {
     statusBar.update({ voteCount, maxVotes });
     j.counts = j.counts || {};
     const counts = j.counts;
-    let processing = false;
     const handleVote = async (date, { isDisabled, isSelected }) => {
-      if (processing || isDisabled) {
+      if (processingDate || isDisabled) {
         if (isDisabled) statusBar.showWarning();
         return;
       }
-      processing = true;
-      if (calendarComponent?.calendar) {
-        calendarComponent.calendar.classList.add('processing');
-      }
+      processingDate = date;
+      render(j);
       if (isSelected) {
         try {
           await unvote({ formId: j.formId, date });
         } catch (err) {
           alert('取り消し失敗:' + err.message);
-          processing = false;
-          if (calendarComponent?.calendar) {
-            calendarComponent.calendar.classList.remove('processing');
-          }
+          processingDate = null;
+          render(j);
           return;
         }
         voteStore.remove(j.formId, date);
         j.counts[date] = Math.max(0, (j.counts[date] || 0) - 1);
-        processing = false;
-        if (calendarComponent?.calendar) {
-          calendarComponent.calendar.classList.remove('processing');
-        }
+        processingDate = null;
         render(j);
         return;
       }
@@ -76,18 +70,13 @@ export function Vote(q) {
         await vote({ formId: j.formId, date });
       } catch (err) {
         alert('投票失敗:' + err.message);
-        processing = false;
-        if (calendarComponent?.calendar) {
-          calendarComponent.calendar.classList.remove('processing');
-        }
+        processingDate = null;
+        render(j);
         return;
       }
       voteStore.add(j.formId, date);
       j.counts[date] = (j.counts[date] || 0) + 1;
-      processing = false;
-      if (calendarComponent?.calendar) {
-        calendarComponent.calendar.classList.remove('processing');
-      }
+      processingDate = null;
       render(j);
     };
     const calendarProps = {
@@ -95,6 +84,7 @@ export function Vote(q) {
       counts,
       voted,
       maxVotes,
+      processingDate,
       onVote: handleVote,
     };
     if (!calendarComponent) {
