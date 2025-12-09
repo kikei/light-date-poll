@@ -55,6 +55,15 @@ export const createForm = async ({ startDate, endDate, message, days }) =>
 
 export const getForm = async formId => request(`/forms/${formId}`);
 
+export const getFormAdmin = async (formId, secret) =>
+  request(`/forms/${formId}/admin?secret=${encodeURIComponent(secret)}`);
+
+export const updateCounts = async (formId, secret, counts) =>
+  request(`/forms/${formId}/counts`, {
+    method: 'PUT',
+    body: { secret, counts },
+  });
+
 export const vote = async ({ formId, date }) =>
   request(`/forms/${formId}/vote`, {
     method: 'POST',

@@ -1,5 +1,5 @@
 import express from 'express';
-import { createForm, getFormById } from '../services/forms.js';
+import { createForm, getFormById, getFormForAdmin } from '../services/forms.js';
 import {
   isValidFormId,
   isValidMessage,
@@ -57,6 +57,30 @@ router.get('/forms/:id', async (req, res) => {
     if (!form) return res.status(404).json({ error: 'not_found' });
 
     res.json(form);
+  } catch (e) {
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// Get form (admin)
+router.get('/forms/:id/admin', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { secret } = req.query;
+    if (!isValidFormId(id))
+      return res.status(400).json({ error: 'invalid formId' });
+    if (!secret || typeof secret !== 'string')
+      return res.status(400).json({ error: 'missing secret' });
+
+    const result = await getFormForAdmin({ formId: id, secret });
+    if (!result.ok) {
+      if (result.error === 'not_found')
+        return res.status(404).json({ error: 'not_found' });
+      if (result.error === 'invalid_secret')
+        return res.status(403).json({ error: 'invalid_secret' });
+    }
+
+    res.json(result.form);
   } catch (e) {
     res.status(500).json({ error: 'server_error' });
   }
