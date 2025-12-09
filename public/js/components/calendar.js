@@ -8,6 +8,7 @@ import { fmtJP } from '../utils/dates.js';
  * @param {Record<string, number>} params.counts
  * @param {string[]} params.voted
  * @param {number|null} params.maxVotes
+ * @param {string|null} params.processingDate
  * @param {(date: string, meta: { isDisabled: boolean, isSelected: boolean }) => void} params.onVote
  * @returns {{ calendar: HTMLElement, update: Function }}
  */
@@ -16,6 +17,7 @@ export function renderCalendar({
   counts = {},
   voted = [],
   maxVotes = null,
+  processingDate = null,
   onVote,
 }) {
   const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
@@ -52,6 +54,7 @@ export function renderCalendar({
     counts = {},
     voted = [],
     maxVotes = null,
+    processingDate = null,
     onVote,
   } = {}) => {
     grid.innerHTML = '';
@@ -68,11 +71,12 @@ export function renderCalendar({
       const tierClass = voteTier(currentCount, maxCount);
       const badgeScale = maxCount > 0 ? 0.92 + ratio * 0.16 : 1;
       const isSelected = voted.includes(date);
+      const isProcessing = date === processingDate;
       const [year, month, day] = date.split('-').map(Number);
       const dayOfWeek = new Date(year, month - 1, day).getDay();
       const isSunday = dayOfWeek === 0;
       const isSaturday = dayOfWeek === 6;
-      const isDisabled = limitReached && !isSelected;
+      const isDisabled = (limitReached && !isSelected) || isProcessing;
 
       const handleActivate = () => {
         if (typeof onVote === 'function') {
@@ -90,6 +94,7 @@ export function renderCalendar({
               (isSunday ? ' sunday' : '') +
               (isSaturday ? ' saturday' : '') +
               (isDisabled ? ' disabled' : '') +
+              (isProcessing ? ' processing' : '') +
               (tierClass ? ' ' + tierClass : ''),
             style: `grid-column: ${dayOfWeek + 1}`,
             role: 'button',
@@ -111,14 +116,14 @@ export function renderCalendar({
               class: 'pill-badge',
               style: `--badge-scale: ${badgeScale.toFixed(3)}`,
             },
-            String(currentCount)
+            isProcessing ? '...' : String(currentCount)
           )
         )
       );
     });
   };
 
-  renderGrid({ options, counts, voted, maxVotes, onVote });
+  renderGrid({ options, counts, voted, maxVotes, processingDate, onVote });
 
   return { calendar, update: renderGrid };
 }

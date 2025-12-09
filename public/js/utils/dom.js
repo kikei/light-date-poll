@@ -30,3 +30,22 @@ export function set(target, content) {
   target.innerHTML = '';
   target.append(content);
 }
+
+/**
+ * Execute async function with button loading state.
+ * Disables button, shows loading text, then restores original state.
+ * @param {HTMLButtonElement} btn - Button element
+ * @param {() => Promise<void>} fn - Async function to execute
+ * @returns {Promise<void>}
+ */
+export async function withLoading(btn, fn) {
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '処理中...';
+  try {
+    await fn();
+  } finally {
+    btn.disabled = false;
+    btn.textContent = orig;
+  }
+}

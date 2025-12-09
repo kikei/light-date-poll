@@ -1,5 +1,9 @@
 import { el, set } from '../utils/dom.js';
 import * as formStore from '../storage/form-store.js';
+import { getFormAdmin } from '../api-client.js';
+import { createUrlSection } from './edit/url-section.js';
+import { createMessageSection } from './edit/message-section.js';
+import { createCountsSection } from './edit/counts-section.js';
 
 export function Edit(q) {
   const app = el('div');
@@ -23,61 +27,43 @@ export function Edit(q) {
       app
     );
   }
-  const editUrl = `${location.origin}${location.pathname}#/edit?formId=${formId}&secret=${secret}`;
-  const editUrlId = `edit-url-${formId}`;
-  const urlInput = el('input', {
-    type: 'text',
-    value: editUrl,
-    readonly: true,
-    class: 'url-input',
-    id: editUrlId,
+  formStore.save(formId, secret);
+  const urlSection = createUrlSection({ formId, secret });
+  const messageSection = createMessageSection({
+    formId,
+    secret,
+    onUpdated: messageSuccessText => loadForm({ messageSuccessText }),
   });
-  urlInput.size = Math.min(Math.max(editUrl.length + 2, 40), 140);
-  const copyBtn = el(
-    'button',
-    {
-      onclick: async () => {
-        try {
-          await navigator.clipboard.writeText(editUrl);
-        } catch (e) {
-          urlInput.select();
-          document.execCommand('copy');
-        }
-        copyBtn.textContent = 'コピー済み';
-        setTimeout(() => (copyBtn.textContent = 'コピー'), 1200);
-      },
-    },
-    'コピー'
-  );
+  const countsSection = createCountsSection({
+    formId,
+    secret,
+    onUpdated: countsSuccessText => loadForm({ countsSuccessText }),
+  });
   set(
     app,
     el(
       'div',
       {},
-      el('h2', {}, '編集'),
-      el(
-        'div',
-        { class: 'card' },
-        el('div', {}, 'フォームID: ', formId),
-        el('a', { href: '#/vote?formId=' + formId }, '投票画面へ'),
-        el(
-          'div',
-          { class: 'form-group' },
-          el('label', { for: editUrlId }, '編集用URL'),
-          el('div', { class: 'url-row' }, urlInput, copyBtn)
-        ),
-        el(
-          'div',
-          { class: 'muted' },
-          '※ この URL をブックマークまたは保存してください'
-        ),
-        el(
-          'div',
-          { class: 'muted' },
-          '※ この最小版は“メッセージ編集”を省略しています。必要なら後で追加可能。'
-        )
-      )
+      el('h2', {}, 'フォーム編集'),
+      urlSection.element,
+      messageSection.element,
+      countsSection.element
     )
   );
+
+  async function loadForm({ countsSuccessText, messageSuccessText } = {}) {
+    messageSection.showLoading();
+    countsSection.showLoading();
+    try {
+      const j = await getFormAdmin({ formId, secret });
+      messageSection.render(j, { successText: messageSuccessText });
+      countsSection.render(j, { successText: countsSuccessText });
+    } catch (err) {
+      messageSection.showError(err);
+      countsSection.showError(err);
+    }
+  }
+
+  loadForm();
   return app;
 }
