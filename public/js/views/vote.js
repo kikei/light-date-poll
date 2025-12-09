@@ -1,4 +1,5 @@
 import { el, set } from '../utils/dom.js';
+import * as formStore from '../storage/form-store.js';
 import * as voteStore from '../storage/vote-store.js';
 import { getForm, vote, unvote } from '../api-client.js';
 import { renderCalendar } from '../components/calendar.js';
@@ -10,7 +11,21 @@ export function Vote(q) {
   if (!formId) {
     return (set(app, el('div', {}, 'formIdがありません')), app);
   }
+  const saved = formStore.get(formId);
+  const secret = saved?.secret;
   const head = el('div', { class: 'card' }, el('h2', {}, '投票'));
+  const editButton =
+    secret &&
+    el(
+      'a',
+      {
+        class: 'corner-edit-btn',
+        href: `#/edit?formId=${formId}&secret=${secret}`,
+        'aria-label': '編集画面へ',
+        title: '編集',
+      },
+      '⚙'
+    );
   const statusBar = createStatusBar({ voteCount: 0, maxVotes: null });
   const calendarContainer = el('div');
   set(
@@ -22,6 +37,7 @@ export function Vote(q) {
       el('div', { class: 'card' }, statusBar.element, calendarContainer)
     )
   );
+  if (editButton) app.append(editButton);
   let calendarComponent = null;
   (async () => {
     try {
