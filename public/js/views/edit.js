@@ -146,7 +146,7 @@ export function Edit(q) {
 
     const feedback = el('div', {
       class: 'muted',
-      style: 'min-height: 18px; margin: 8px 0;',
+      style: 'min-height: 18px;',
     });
     if (successText) {
       feedback.textContent = successText;
@@ -192,12 +192,19 @@ export function Edit(q) {
         ),
         el(
           'div',
-          { class: 'form-group' },
+          { class: 'form-group', style: 'margin-bottom: 12px;' },
           el('label', { for: textareaId }, 'メッセージ'),
-          textarea
-        ),
-        feedback,
-        el('div', { class: 'row' }, updateBtn)
+          textarea,
+          el(
+            'div',
+            {
+              class: 'row',
+              style: 'margin-top: 8px; align-items: flex-start;',
+            },
+            updateBtn,
+            feedback
+          )
+        )
       )
     );
   }
