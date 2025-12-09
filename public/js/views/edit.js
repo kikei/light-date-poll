@@ -98,16 +98,7 @@ export function Edit(q) {
       el(
         'div',
         { class: 'card' },
-        el(
-          'div',
-          { class: 'form-meta' },
-          el(
-            'div',
-            { class: 'form-id-chip' },
-            el('div', { class: 'form-id-label' }, 'フォームID'),
-            el('div', { class: 'form-id-value' }, formId)
-          )
-        ),
+        el('h3', {}, '概要'),
         el(
           'div',
           { class: 'form-group' },
