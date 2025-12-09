@@ -1,6 +1,7 @@
 import { el, set, withLoading } from '../utils/dom.js';
 import * as formStore from '../storage/form-store.js';
 import { getFormAdmin, updateCounts } from '../api-client.js';
+import { fmtIsoWithWeekday } from '../utils/dates.js';
 
 export function Edit(q) {
   const app = el('div');
@@ -132,7 +133,11 @@ export function Edit(q) {
           class: 'form-group',
           style: 'display: flex; align-items: center; gap: 12px;',
         },
-        el('label', { for: inputId, style: 'margin: 0;' }, date),
+        el(
+          'label',
+          { for: inputId, style: 'margin: 0;' },
+          fmtIsoWithWeekday(date)
+        ),
         input
       );
     });
