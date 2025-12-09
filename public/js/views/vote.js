@@ -42,20 +42,24 @@ export function Vote(q) {
     statusBar.update({ voteCount, maxVotes });
     j.counts = j.counts || {};
     const counts = j.counts;
+    let processing = false;
     const handleVote = async (date, { isDisabled, isSelected }) => {
-      if (isDisabled) {
-        statusBar.showWarning();
+      if (processing || isDisabled) {
+        if (isDisabled) statusBar.showWarning();
         return;
       }
+      processing = true;
       if (isSelected) {
         try {
           await unvote({ formId: j.formId, date });
         } catch (err) {
           alert('取り消し失敗:' + err.message);
+          processing = false;
           return;
         }
         voteStore.remove(j.formId, date);
         j.counts[date] = Math.max(0, (j.counts[date] || 0) - 1);
+        processing = false;
         render(j);
         return;
       }
@@ -63,10 +67,12 @@ export function Vote(q) {
         await vote({ formId: j.formId, date });
       } catch (err) {
         alert('投票失敗:' + err.message);
+        processing = false;
         return;
       }
       voteStore.add(j.formId, date);
       j.counts[date] = (j.counts[date] || 0) + 1;
+      processing = false;
       render(j);
     };
     const calendarProps = {

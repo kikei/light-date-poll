@@ -1,4 +1,4 @@
-import { el, set } from '../utils/dom.js';
+import { el, set, withLoading } from '../utils/dom.js';
 import * as formStore from '../storage/form-store.js';
 
 export function Edit(q) {
@@ -36,15 +36,17 @@ export function Edit(q) {
   const copyBtn = el(
     'button',
     {
-      onclick: async () => {
-        try {
-          await navigator.clipboard.writeText(editUrl);
-        } catch (e) {
-          urlInput.select();
-          document.execCommand('copy');
-        }
-        copyBtn.textContent = 'コピー済み';
-        setTimeout(() => (copyBtn.textContent = 'コピー'), 1200);
+      onclick: async function () {
+        await withLoading(this, async () => {
+          try {
+            await navigator.clipboard.writeText(editUrl);
+          } catch (e) {
+            urlInput.select();
+            document.execCommand('copy');
+          }
+          copyBtn.textContent = 'コピー済み';
+          await new Promise(r => setTimeout(r, 1200));
+        });
       },
     },
     'コピー'
