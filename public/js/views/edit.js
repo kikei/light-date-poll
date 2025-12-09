@@ -26,6 +26,16 @@ export function Edit(q) {
     );
   }
   formStore.save(formId, secret);
+  const voteUrl = `${location.origin}${location.pathname}#/vote?formId=${formId}`;
+  const voteUrlId = `vote-url-${formId}`;
+  const voteUrlInput = el('input', {
+    type: 'text',
+    value: voteUrl,
+    readonly: true,
+    class: 'url-input',
+    id: voteUrlId,
+  });
+  voteUrlInput.size = Math.min(Math.max(voteUrl.length + 2, 40), 140);
   const editUrl = `${location.origin}${location.pathname}#/edit?formId=${formId}&secret=${secret}`;
   const editUrlId = `edit-url-${formId}`;
   const urlInput = el('input', {
@@ -36,24 +46,39 @@ export function Edit(q) {
     id: editUrlId,
   });
   urlInput.size = Math.min(Math.max(editUrl.length + 2, 40), 140);
-  const copyBtn = el(
-    'button',
-    {
-      onclick: async function () {
-        await withLoading(this, async () => {
-          try {
-            await navigator.clipboard.writeText(editUrl);
-          } catch (e) {
-            urlInput.select();
-            document.execCommand('copy');
-          }
-          copyBtn.textContent = 'コピー済み';
-          await new Promise(r => setTimeout(r, 1200));
-        });
+  const createCopyButton = (url, input) => {
+    const copyBtn = el(
+      'button',
+      {
+        onclick: async function () {
+          await withLoading(this, async () => {
+            try {
+              await navigator.clipboard.writeText(url);
+            } catch (e) {
+              input.select();
+              document.execCommand('copy');
+            }
+            copyBtn.textContent = 'コピー済み';
+            await new Promise(r => setTimeout(r, 1200));
+          });
+        },
       },
+      'コピー'
+    );
+    return copyBtn;
+  };
+  const voteCopyBtn = createCopyButton(voteUrl, voteUrlInput);
+  const voteOpenBtn = el(
+    'a',
+    {
+      href: voteUrl,
+      target: '_blank',
+      rel: 'noopener',
+      class: 'button-link',
     },
-    'コピー'
+    '開く'
   );
+  const copyBtn = createCopyButton(editUrl, urlInput);
   const messageCard = el(
     'div',
     { class: 'card' },
@@ -63,11 +88,6 @@ export function Edit(q) {
     'div',
     { class: 'card' },
     el('div', {}, '読み込み中...')
-  );
-  const voteLink = el(
-    'a',
-    { href: '#/vote?formId=' + formId, class: 'button-link primary' },
-    '投票画面を開く'
   );
   set(
     app,
@@ -86,8 +106,19 @@ export function Edit(q) {
             { class: 'form-id-chip' },
             el('div', { class: 'form-id-label' }, 'フォームID'),
             el('div', { class: 'form-id-value' }, formId)
-          ),
-          voteLink
+          )
+        ),
+        el(
+          'div',
+          { class: 'form-group' },
+          el('label', { for: voteUrlId }, '投票用URL'),
+          el(
+            'div',
+            { class: 'url-row' },
+            voteUrlInput,
+            voteCopyBtn,
+            voteOpenBtn
+          )
         ),
         el(
           'div',
