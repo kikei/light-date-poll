@@ -1,5 +1,4 @@
 import { el, set, withLoading } from '../utils/dom.js';
-import { fmtJP } from '../utils/dates.js';
 import * as formStore from '../storage/form-store.js';
 import { getFormAdmin, updateCounts } from '../api-client.js';
 
@@ -129,8 +128,11 @@ export function Edit(q) {
       inputs.set(date, input);
       return el(
         'div',
-        { class: 'form-group' },
-        el('label', { for: inputId }, `${fmtJP(date)} (${date}) の票数`),
+        {
+          class: 'form-group',
+          style: 'display: flex; align-items: center; gap: 12px;',
+        },
+        el('label', { for: inputId, style: 'margin: 0;' }, date),
         input
       );
     });
