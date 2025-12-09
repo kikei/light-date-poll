@@ -53,18 +53,18 @@ export const createForm = async ({ startDate, endDate, message, days }) =>
     body: { startDate, endDate, message, days },
   });
 
-export const getForm = async formId => request(`/forms/${formId}`);
+export const getForm = async ({ formId }) => request(`/forms/${formId}`);
 
-export const getFormAdmin = async (formId, secret) =>
+export const getFormAdmin = async ({ formId, secret }) =>
   request(`/forms/${formId}/admin?secret=${encodeURIComponent(secret)}`);
 
-export const updateCounts = async (formId, secret, counts) =>
+export const updateCounts = async ({ formId, secret, counts }) =>
   request(`/forms/${formId}/counts`, {
     method: 'PUT',
     body: { secret, counts },
   });
 
-export const updateMessage = async (formId, secret, message) =>
+export const updateMessage = async ({ formId, secret, message }) =>
   request(`/forms/${formId}/message`, {
     method: 'PUT',
     body: { secret, message },

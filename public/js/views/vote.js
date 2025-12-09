@@ -41,7 +41,7 @@ export function Vote(q) {
   let calendarComponent = null;
   (async () => {
     try {
-      const j = await getForm(formId);
+      const j = await getForm({ formId });
       head.append(el('div', { class: 'muted' }, j.message || ''));
       render(j);
     } catch (err) {
