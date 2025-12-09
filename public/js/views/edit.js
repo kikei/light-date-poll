@@ -64,6 +64,11 @@ export function Edit(q) {
     { class: 'card' },
     el('div', {}, '読み込み中...')
   );
+  const voteLink = el(
+    'a',
+    { href: '#/vote?formId=' + formId, class: 'button-link primary' },
+    '投票画面を開く'
+  );
   set(
     app,
     el(
@@ -73,8 +78,17 @@ export function Edit(q) {
       el(
         'div',
         { class: 'card' },
-        el('div', {}, 'フォームID: ', formId),
-        el('a', { href: '#/vote?formId=' + formId }, '投票画面へ'),
+        el(
+          'div',
+          { class: 'form-meta' },
+          el(
+            'div',
+            { class: 'form-id-chip' },
+            el('div', { class: 'form-id-label' }, 'フォームID'),
+            el('div', { class: 'form-id-value' }, formId)
+          ),
+          voteLink
+        ),
         el(
           'div',
           { class: 'form-group' },
