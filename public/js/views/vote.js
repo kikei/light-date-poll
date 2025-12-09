@@ -49,17 +49,26 @@ export function Vote(q) {
         return;
       }
       processing = true;
+      if (calendarComponent?.calendar) {
+        calendarComponent.calendar.classList.add('processing');
+      }
       if (isSelected) {
         try {
           await unvote({ formId: j.formId, date });
         } catch (err) {
           alert('取り消し失敗:' + err.message);
           processing = false;
+          if (calendarComponent?.calendar) {
+            calendarComponent.calendar.classList.remove('processing');
+          }
           return;
         }
         voteStore.remove(j.formId, date);
         j.counts[date] = Math.max(0, (j.counts[date] || 0) - 1);
         processing = false;
+        if (calendarComponent?.calendar) {
+          calendarComponent.calendar.classList.remove('processing');
+        }
         render(j);
         return;
       }
@@ -68,11 +77,17 @@ export function Vote(q) {
       } catch (err) {
         alert('投票失敗:' + err.message);
         processing = false;
+        if (calendarComponent?.calendar) {
+          calendarComponent.calendar.classList.remove('processing');
+        }
         return;
       }
       voteStore.add(j.formId, date);
       j.counts[date] = (j.counts[date] || 0) + 1;
       processing = false;
+      if (calendarComponent?.calendar) {
+        calendarComponent.calendar.classList.remove('processing');
+      }
       render(j);
     };
     const calendarProps = {
