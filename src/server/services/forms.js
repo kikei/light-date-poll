@@ -1,7 +1,7 @@
 import { pool } from '../db/pool.js';
 import { clampDays, pickDates, toISO } from '../utils/date.js';
 import { rid, rsecret } from '../utils/id.js';
-import { isValidISODate } from '../utils/validation.js';
+import { isValidISODate, isValidMessage } from '../utils/validation.js';
 
 async function createForm({ startDate, endDate, message, maxVotes }) {
   const formId = rid();
@@ -155,4 +155,27 @@ async function upsertCounts({ formId, secret, counts }) {
   return { ok: true, counts: updatedCounts };
 }
 
-export { createForm, getFormById, getFormForAdmin, upsertCounts };
+async function updateMessage({ formId, secret, message }) {
+  const form = await getFormRow(formId);
+  if (!form) return { ok: false, error: 'not_found' };
+  if (form.secret !== secret) return { ok: false, error: 'invalid_secret' };
+
+  const messageCheck = isValidMessage(message);
+  if (!messageCheck.valid) return { ok: false, error: 'invalid_message' };
+  const safeMessage = messageCheck.safeMessage;
+
+  await pool.query('UPDATE forms SET message=$1 WHERE form_id=$2', [
+    safeMessage,
+    formId,
+  ]);
+
+  return { ok: true, message: safeMessage };
+}
+
+export {
+  createForm,
+  getFormById,
+  getFormForAdmin,
+  upsertCounts,
+  updateMessage,
+};

@@ -64,6 +64,12 @@ export const updateCounts = async (formId, secret, counts) =>
     body: { secret, counts },
   });
 
+export const updateMessage = async (formId, secret, message) =>
+  request(`/forms/${formId}/message`, {
+    method: 'PUT',
+    body: { secret, message },
+  });
+
 export const vote = async ({ formId, date }) =>
   request(`/forms/${formId}/vote`, {
     method: 'POST',

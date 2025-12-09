@@ -1,6 +1,6 @@
 import { el, set, withLoading } from '../utils/dom.js';
 import * as formStore from '../storage/form-store.js';
-import { getFormAdmin, updateCounts } from '../api-client.js';
+import { getFormAdmin, updateCounts, updateMessage } from '../api-client.js';
 import { fmtIsoWithWeekday } from '../utils/dates.js';
 
 export function Edit(q) {
@@ -54,6 +54,11 @@ export function Edit(q) {
     },
     'コピー'
   );
+  const messageCard = el(
+    'div',
+    { class: 'card' },
+    el('div', {}, '読み込み中...')
+  );
   const countsCard = el(
     'div',
     { class: 'card' },
@@ -81,31 +86,93 @@ export function Edit(q) {
           { class: 'muted' },
           '※ この URL をブックマークまたは保存してください'
         ),
-        el(
-          'div',
-          { class: 'muted' },
-          '※ この最小版は“メッセージ編集”を省略しています。必要なら後で追加可能。'
-        ),
         el('div', { class: 'muted' }, '※ 下部で現在の票数を更新できます。')
       ),
+      messageCard,
       countsCard
     )
   );
 
-  async function loadForm({ successText } = {}) {
-    set(countsCard, el('div', {}, '読み込み中...'));
+  async function loadForm({ countsSuccessText, messageSuccessText } = {}) {
+    const loading = el('div', {}, '読み込み中...');
+    set(messageCard, loading.cloneNode(true));
+    set(countsCard, loading.cloneNode(true));
     try {
       const j = await getFormAdmin(formId, secret);
-      renderForm(j, { successText });
+      renderMessageSection(j, { successText: messageSuccessText });
+      renderCountsSection(j, { successText: countsSuccessText });
     } catch (err) {
-      set(
-        countsCard,
-        el('div', { class: 'error-message' }, '読み込み失敗: ' + err.message)
-      );
+      const errorNode = () =>
+        el('div', { class: 'error-message' }, '読み込み失敗: ' + err.message);
+      set(messageCard, errorNode());
+      set(countsCard, errorNode());
     }
   }
 
-  function renderForm(j, { successText } = {}) {
+  function renderMessageSection(form, { successText } = {}) {
+    const textareaId = `message-${form.formId}`;
+    const textarea = el('textarea', { id: textareaId, rows: 4 });
+    textarea.value = form.message || '';
+
+    const feedback = el('div', {
+      class: 'muted',
+      style: 'min-height: 18px; margin: 8px 0;',
+    });
+    if (successText) {
+      feedback.textContent = successText;
+      feedback.style.color = 'var(--green-success)';
+    }
+
+    const updateBtn = el(
+      'button',
+      {
+        class: 'primary',
+        onclick: async function () {
+          feedback.textContent = '';
+          feedback.className = 'muted';
+          feedback.style.color = '';
+
+          await withLoading(this, async () => {
+            try {
+              await updateMessage(formId, secret, textarea.value);
+              await loadForm({
+                messageSuccessText: 'メッセージを更新しました',
+              });
+            } catch (err) {
+              feedback.className = 'error-message';
+              feedback.style.color = '';
+              feedback.textContent = '更新に失敗しました: ' + err.message;
+            }
+          });
+        },
+      },
+      'メッセージを更新'
+    );
+
+    set(
+      messageCard,
+      el(
+        'div',
+        {},
+        el('h3', {}, 'メッセージを編集'),
+        el(
+          'div',
+          { class: 'muted', style: 'margin-bottom: 12px;' },
+          '参加者に表示されるメッセージを更新できます。空欄にすると非表示になります。'
+        ),
+        el(
+          'div',
+          { class: 'form-group' },
+          el('label', { for: textareaId }, 'メッセージ'),
+          textarea
+        ),
+        feedback,
+        el('div', { class: 'row' }, updateBtn)
+      )
+    );
+  }
+
+  function renderCountsSection(j, { successText } = {}) {
     const inputs = new Map();
     const feedback = el('div', {
       class: 'muted',
@@ -158,7 +225,7 @@ export function Edit(q) {
           await withLoading(this, async () => {
             try {
               await updateCounts(formId, secret, payload);
-              await loadForm({ successText: '票数を更新しました' });
+              await loadForm({ countsSuccessText: '票数を更新しました' });
             } catch (err) {
               feedback.className = 'error-message';
               feedback.style.color = '';
