@@ -80,13 +80,7 @@ export function Edit(q) {
           { class: 'form-group' },
           el('label', { for: editUrlId }, '編集用URL'),
           el('div', { class: 'url-row' }, urlInput, copyBtn)
-        ),
-        el(
-          'div',
-          { class: 'muted' },
-          '※ この URL をブックマークまたは保存してください'
-        ),
-        el('div', { class: 'muted' }, '※ 下部で現在の票数を更新できます。')
+        )
       ),
       messageCard,
       countsCard
@@ -146,7 +140,7 @@ export function Edit(q) {
           });
         },
       },
-      'メッセージを更新'
+      'メッセージを保存'
     );
 
     set(
@@ -158,7 +152,7 @@ export function Edit(q) {
         el(
           'div',
           { class: 'muted', style: 'margin-bottom: 12px;' },
-          '参加者に表示されるメッセージを更新できます。空欄にすると非表示になります。'
+          '参加者に表示するメッセージを更新します。空欄にすると非表示になります。'
         ),
         el(
           'div',
@@ -234,18 +228,15 @@ export function Edit(q) {
           });
         },
       },
-      '票数を更新'
+      '票数を保存'
     );
 
     const children = [
       el('h3', {}, '票数を編集'),
-      j.message
-        ? el('div', { class: 'muted', style: 'margin-bottom: 8px;' }, j.message)
-        : null,
       el(
         'div',
         { class: 'muted', style: 'margin-bottom: 12px;' },
-        '日付ごとの票数を直接入力して更新できます。'
+        '日付ごとの票数を直接入力して変更します。'
       ),
       ...fields,
       feedback,
