@@ -33,6 +33,8 @@ export function Vote(q) {
     }
   })();
 
+  let processingDate = null;
+
   function render(j) {
     const voted = voteStore.get(j.formId);
     const voteCount = voted.length;
@@ -43,19 +45,24 @@ export function Vote(q) {
     j.counts = j.counts || {};
     const counts = j.counts;
     const handleVote = async (date, { isDisabled, isSelected }) => {
-      if (isDisabled) {
-        statusBar.showWarning();
+      if (processingDate || isDisabled) {
+        if (isDisabled) statusBar.showWarning();
         return;
       }
+      processingDate = date;
+      render(j);
       if (isSelected) {
         try {
           await unvote({ formId: j.formId, date });
         } catch (err) {
           alert('取り消し失敗:' + err.message);
+          processingDate = null;
+          render(j);
           return;
         }
         voteStore.remove(j.formId, date);
         j.counts[date] = Math.max(0, (j.counts[date] || 0) - 1);
+        processingDate = null;
         render(j);
         return;
       }
@@ -63,10 +70,13 @@ export function Vote(q) {
         await vote({ formId: j.formId, date });
       } catch (err) {
         alert('投票失敗:' + err.message);
+        processingDate = null;
+        render(j);
         return;
       }
       voteStore.add(j.formId, date);
       j.counts[date] = (j.counts[date] || 0) + 1;
+      processingDate = null;
       render(j);
     };
     const calendarProps = {
@@ -74,6 +84,7 @@ export function Vote(q) {
       counts,
       voted,
       maxVotes,
+      processingDate,
       onVote: handleVote,
     };
     if (!calendarComponent) {

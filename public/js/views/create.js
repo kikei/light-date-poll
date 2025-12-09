@@ -1,4 +1,4 @@
-import { el, set } from '../utils/dom.js';
+import { el, set, withLoading } from '../utils/dom.js';
 import * as formStore from '../storage/form-store.js';
 import { createForm } from '../api-client.js';
 
@@ -36,7 +36,7 @@ export function Create(_query = {}) {
     'button',
     {
       class: 'primary',
-      onclick: async () => {
+      onclick: async function () {
         if (!s.value || !e.value) {
           errorMsg.textContent = '開始日と終了日は必須です';
           errorMsg.style.display = 'block';
@@ -45,26 +45,27 @@ export function Create(_query = {}) {
           return;
         }
         clearError();
-        let j;
-        try {
-          j = await createForm({
-            startDate: s.value,
-            endDate: e.value,
-            message: msg.value || '',
-            days: days.value === '' ? null : days.value,
-          });
-        } catch (err) {
-          alert('作成失敗:' + err.message);
-          return;
-        }
-        // editUrl already includes formId/secret in the hash fragment; no need to parse as a full URL
-        const h = j.editUrl?.split('#')[1];
-        const secret =
-          h && h.includes('?')
-            ? new URLSearchParams(h.split('?')[1]).get('secret')
-            : null;
-        formStore.save(j.formId, secret);
-        location.hash = h ? '#' + h : `#/edit?formId=${j.formId}`;
+        await withLoading(this, async () => {
+          let j;
+          try {
+            j = await createForm({
+              startDate: s.value,
+              endDate: e.value,
+              message: msg.value || '',
+              days: days.value === '' ? null : days.value,
+            });
+          } catch (err) {
+            alert('作成失敗:' + err.message);
+            return;
+          }
+          const h = j.editUrl?.split('#')[1];
+          const secret =
+            h && h.includes('?')
+              ? new URLSearchParams(h.split('?')[1]).get('secret')
+              : null;
+          formStore.save(j.formId, secret);
+          location.hash = h ? '#' + h : `#/edit?formId=${j.formId}`;
+        });
       },
     },
     '作成'
