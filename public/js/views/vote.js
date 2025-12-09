@@ -24,7 +24,7 @@ export function Vote(q) {
         'aria-label': '編集画面へ',
         title: '編集',
       },
-      '⚙'
+      '✎'
     );
   const statusBar = createStatusBar({ voteCount: 0, maxVotes: null });
   const calendarContainer = el('div');
