@@ -1,4 +1,5 @@
 import { pool } from '../db/pool.js';
+import { upsertVoter } from '../repositories/forms.js';
 
 async function getFormOptions(formId) {
   const formResult = await pool.query(
@@ -9,7 +10,7 @@ async function getFormOptions(formId) {
   return formResult.rows[0].options;
 }
 
-async function incrementVote({ formId, date }) {
+async function incrementVote({ formId, date, nickname }) {
   const options = await getFormOptions(formId);
   if (!options) return { ok: false, error: 'not_found' };
   if (!options.includes(date)) return { ok: false, error: 'invalid_date' };
@@ -22,6 +23,7 @@ async function incrementVote({ formId, date }) {
   `,
     [formId, date]
   );
+  await upsertVoter({ formId, nickname });
   return { ok: true };
 }
 

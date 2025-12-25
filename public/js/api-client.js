@@ -70,10 +70,10 @@ export const updateMessage = async ({ formId, secret, message }) =>
     body: { secret, message },
   });
 
-export const vote = async ({ formId, date }) =>
+export const vote = async ({ formId, date, nickname }) =>
   request(`/forms/${formId}/vote`, {
     method: 'POST',
-    body: { date },
+    body: { date, nickname },
   });
 
 export const unvote = async ({ formId, date }) =>

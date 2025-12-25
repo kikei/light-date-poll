@@ -15,6 +15,14 @@ export async function migrate() {
     'ALTER TABLE forms ADD COLUMN IF NOT EXISTS max_votes INTEGER;'
   );
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS voters(
+      form_id TEXT NOT NULL,
+      nickname TEXT NOT NULL,
+      PRIMARY KEY(form_id, nickname),
+      FOREIGN KEY (form_id) REFERENCES forms(form_id) ON DELETE CASCADE
+    );
+  `);
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS counts(
       form_id TEXT NOT NULL,
       date    DATE NOT NULL,

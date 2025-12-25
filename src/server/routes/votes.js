@@ -2,7 +2,11 @@ import express from 'express';
 import { decrementVote, incrementVote } from '../services/votes.js';
 import { upsertCounts } from '../services/forms.js';
 import { toISO } from '../utils/date.js';
-import { isValidFormId, isValidISODate } from '../utils/validation.js';
+import {
+  isValidFormId,
+  isValidISODate,
+  isValidNickname,
+} from '../utils/validation.js';
 
 const router = express.Router();
 
@@ -10,16 +14,24 @@ const router = express.Router();
 router.post('/forms/:id/vote', async (req, res) => {
   try {
     const { id } = req.params;
-    const { date } = req.body || {};
+    const { date, nickname } = req.body || {};
     if (!isValidFormId(id))
       return res.status(400).json({ error: 'invalid formId' });
     if (!date) return res.status(400).json({ error: 'missing date' });
+    if (!nickname) return res.status(400).json({ error: 'missing nickname' });
     const isoDateResult = isValidISODate(date);
     if (!isoDateResult.valid)
       return res.status(400).json({ error: isoDateResult.error });
+    const nicknameResult = isValidNickname(nickname);
+    if (!nicknameResult.valid)
+      return res.status(400).json({ error: nicknameResult.error });
     const isoDate = toISO(isoDateResult.date);
 
-    const result = await incrementVote({ formId: id, date: isoDate });
+    const result = await incrementVote({
+      formId: id,
+      date: isoDate,
+      nickname: nicknameResult.safeNickname,
+    });
     if (!result.ok) {
       if (result.error === 'not_found')
         return res.status(404).json({ error: 'form not found' });

@@ -1,5 +1,6 @@
 import { el, set } from '../utils/dom.js';
 import * as formStore from '../storage/form-store.js';
+import * as nicknameStore from '../storage/nickname-store.js';
 import * as voteStore from '../storage/vote-store.js';
 import { getForm, vote, unvote } from '../api-client.js';
 import { renderCalendar } from '../components/calendar.js';
@@ -14,6 +15,18 @@ export function Vote(q) {
   const saved = formStore.get(formId);
   const secret = saved?.secret;
   const head = el('div', { class: 'card' }, el('h2', {}, '投票'));
+  const nicknameId = `nickname-${formId}`;
+  const nicknameInput = el('input', {
+    id: nicknameId,
+    type: 'text',
+    value: nicknameStore.get() || '',
+  });
+  const nicknameField = el(
+    'div',
+    { class: 'form-group' },
+    el('label', { for: nicknameId }, 'ニックネーム'),
+    nicknameInput
+  );
   const editButton =
     secret &&
     el(
@@ -43,6 +56,7 @@ export function Vote(q) {
     try {
       const j = await getForm({ formId });
       head.append(el('div', { class: 'muted' }, j.message || ''));
+      head.append(nicknameField);
       render(j);
     } catch (err) {
       calendarContainer.innerHTML = '<p>読み込み失敗</p>';
@@ -82,14 +96,22 @@ export function Vote(q) {
         render(j);
         return;
       }
+      const nickname = nicknameInput.value.trim();
+      if (!nickname) {
+        alert('ニックネームを入力してください');
+        processingDate = null;
+        render(j);
+        return;
+      }
       try {
-        await vote({ formId: j.formId, date });
+        await vote({ formId: j.formId, date, nickname });
       } catch (err) {
         alert('投票失敗:' + err.message);
         processingDate = null;
         render(j);
         return;
       }
+      nicknameStore.save(nickname);
       voteStore.add(j.formId, date);
       j.counts[date] = (j.counts[date] || 0) + 1;
       processingDate = null;
