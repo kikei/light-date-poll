@@ -1,6 +1,7 @@
 import { el, set } from '../utils/dom.js';
 import * as formStore from '../storage/form-store.js';
 import * as nicknameStore from '../storage/nickname-store.js';
+import * as userStore from '../storage/user-store.js';
 import * as voteStore from '../storage/vote-store.js';
 import { getForm, vote, unvote } from '../api-client.js';
 import { renderCalendar } from '../components/calendar.js';
@@ -14,12 +15,14 @@ export function Vote(q) {
   }
   const saved = formStore.get(formId);
   const secret = saved?.secret;
+  const userId = userStore.getUserId(formId);
   const head = el('div', { class: 'card' }, el('h2', {}, '投票'));
   const nicknameId = `nickname-${formId}`;
   const nicknameInput = el('input', {
     id: nicknameId,
     type: 'text',
-    value: nicknameStore.get() || '',
+    value: nicknameStore.getLastNickname(),
+    placeholder: '名前を入力',
   });
   const nicknameField = el(
     'div',
@@ -83,7 +86,7 @@ export function Vote(q) {
       render(j);
       if (isSelected) {
         try {
-          await unvote({ formId: j.formId, date });
+          await unvote({ formId: j.formId, date, userId });
         } catch (err) {
           alert('取り消し失敗:' + err.message);
           processingDate = null;
@@ -104,14 +107,14 @@ export function Vote(q) {
         return;
       }
       try {
-        await vote({ formId: j.formId, date, nickname });
+        await vote({ formId: j.formId, date, userId, nickname });
       } catch (err) {
         alert('投票失敗:' + err.message);
         processingDate = null;
         render(j);
         return;
       }
-      nicknameStore.save(nickname);
+      nicknameStore.saveLastNickname(nickname);
       voteStore.add(j.formId, date);
       j.counts[date] = (j.counts[date] || 0) + 1;
       processingDate = null;

@@ -58,31 +58,54 @@ async function findFormById(formId) {
   };
 }
 
-async function getCountsRows(formId) {
-  const rows = await pool.query(
-    'SELECT date, count FROM counts WHERE form_id=$1 ORDER BY date',
-    [formId]
+async function upsertUserNickname({ formId, userId, nickname }) {
+  await pool.query(
+    `
+    INSERT INTO user_nicknames(form_id, user_id, nickname)
+    VALUES ($1, $2, $3)
+    ON CONFLICT (form_id, user_id) DO UPDATE SET nickname = EXCLUDED.nickname
+  `,
+    [formId, userId, nickname]
   );
-  return rows.rows;
 }
 
-async function upsertCounts(formId, entries) {
-  if (!entries.length) return;
+async function getUserNicknames(formId) {
+  const result = await pool.query(
+    'SELECT DISTINCT nickname FROM user_nicknames WHERE form_id = $1 ORDER BY nickname',
+    [formId]
+  );
+  return result.rows.map(row => row.nickname);
+}
 
-  const values = entries.flatMap(entry => [entry.date, entry.count]);
-  const placeholders = entries
-    .map((_, i) => `($1, $${i * 2 + 2}, $${i * 2 + 3})`)
-    .join(',');
+async function addVote({ formId, date, userId }) {
+  await pool.query(
+    `
+    INSERT INTO votes(form_id, date, user_id)
+    VALUES ($1, $2, $3)
+    ON CONFLICT (form_id, date, user_id) DO NOTHING
+  `,
+    [formId, date, userId]
+  );
+}
 
-  await withTransaction(async client => {
-    await client.query(
-      `
-      INSERT INTO counts(form_id, date, count) VALUES ${placeholders}
-      ON CONFLICT (form_id, date) DO UPDATE SET count = EXCLUDED.count
-    `,
-      [formId, ...values]
-    );
-  });
+async function removeVote({ formId, date, userId }) {
+  await pool.query(
+    'DELETE FROM votes WHERE form_id = $1 AND date = $2 AND user_id = $3',
+    [formId, date, userId]
+  );
+}
+
+async function getVoteCounts(formId) {
+  const result = await pool.query(
+    `
+    SELECT date, COUNT(*) as count
+    FROM votes
+    WHERE form_id = $1
+    GROUP BY date
+  `,
+    [formId]
+  );
+  return result.rows;
 }
 
 async function updateMessage(formId, message) {
@@ -93,10 +116,13 @@ async function updateMessage(formId, message) {
 }
 
 export {
+  addVote,
   createFormRecord,
   findFormById,
-  getCountsRows,
-  upsertCounts,
+  getUserNicknames,
+  getVoteCounts,
+  removeVote,
   updateMessage,
+  upsertUserNickname,
   withTransaction,
 };

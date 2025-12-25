@@ -1,6 +1,6 @@
-const KEY = 'nickname';
+const KEY = 'last-nickname';
 
-export function get() {
+export function getLastNickname() {
   try {
     return localStorage.getItem(KEY) || '';
   } catch {
@@ -8,7 +8,7 @@ export function get() {
   }
 }
 
-export function save(nickname) {
+export function saveLastNickname(nickname) {
   if (nickname == null) return;
   try {
     localStorage.setItem(KEY, nickname);

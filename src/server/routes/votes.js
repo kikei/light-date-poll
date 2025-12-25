@@ -10,14 +10,22 @@ import {
 
 const router = express.Router();
 
+function isValidUserId(userId) {
+  return typeof userId === 'string' && userId.trim().length > 0;
+}
+
 // Vote (+1)
 router.post('/forms/:id/vote', async (req, res) => {
   try {
     const { id } = req.params;
-    const { date, nickname } = req.body || {};
+    const { date, nickname, userId } = req.body || {};
     if (!isValidFormId(id))
       return res.status(400).json({ error: 'invalid formId' });
     if (!date) return res.status(400).json({ error: 'missing date' });
+    if (userId == null)
+      return res.status(400).json({ error: 'missing userId' });
+    if (!isValidUserId(userId))
+      return res.status(400).json({ error: 'invalid userId' });
     if (!nickname) return res.status(400).json({ error: 'missing nickname' });
     const isoDateResult = isValidISODate(date);
     if (!isoDateResult.valid)
@@ -26,10 +34,12 @@ router.post('/forms/:id/vote', async (req, res) => {
     if (!nicknameResult.valid)
       return res.status(400).json({ error: nicknameResult.error });
     const isoDate = toISO(isoDateResult.date);
+    const safeUserId = userId.trim();
 
     const result = await incrementVote({
       formId: id,
       date: isoDate,
+      userId: safeUserId,
       nickname: nicknameResult.safeNickname,
     });
     if (!result.ok) {
@@ -49,16 +59,25 @@ router.post('/forms/:id/vote', async (req, res) => {
 router.delete('/forms/:id/vote', async (req, res) => {
   try {
     const { id } = req.params;
-    const { date } = req.body || {};
+    const { date, userId } = req.body || {};
     if (!isValidFormId(id))
       return res.status(400).json({ error: 'invalid formId' });
     if (!date) return res.status(400).json({ error: 'missing date' });
+    if (userId == null)
+      return res.status(400).json({ error: 'missing userId' });
+    if (!isValidUserId(userId))
+      return res.status(400).json({ error: 'invalid userId' });
     const isoDateResult = isValidISODate(date);
     if (!isoDateResult.valid)
       return res.status(400).json({ error: isoDateResult.error });
     const isoDate = toISO(isoDateResult.date);
+    const safeUserId = userId.trim();
 
-    const result = await decrementVote({ formId: id, date: isoDate });
+    const result = await decrementVote({
+      formId: id,
+      date: isoDate,
+      userId: safeUserId,
+    });
     if (!result.ok) {
       if (result.error === 'not_found')
         return res.status(404).json({ error: 'form not found' });

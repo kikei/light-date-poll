@@ -4,7 +4,7 @@ import { isValidISODate, isValidMessage } from '../utils/validation.js';
 import {
   createFormRecord,
   findFormById,
-  getCountsRows,
+  getVoteCounts,
   upsertCounts as persistCounts,
   updateMessage as persistMessage,
 } from '../repositories/forms.js';
@@ -29,7 +29,7 @@ function rowsToCountsMap(rows) {
 }
 
 async function getCountsMap(formId) {
-  const rows = await getCountsRows(formId);
+  const rows = await getVoteCounts(formId);
   return rowsToCountsMap(rows);
 }
 
