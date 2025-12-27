@@ -3,9 +3,10 @@ import * as formStore from '../storage/form-store.js';
 import * as nicknameStore from '../storage/nickname-store.js';
 import * as userStore from '../storage/user-store.js';
 import * as voteStore from '../storage/vote-store.js';
-import { getForm, vote, unvote } from '../api-client.js';
+import { getForm, getParticipants, vote, unvote } from '../api-client.js';
 import { renderCalendar } from '../components/calendar.js';
 import { createStatusBar } from '../components/status-bar.js';
+import { createParticipants } from '../components/participants.js';
 
 export function Vote(q) {
   const app = el('div');
@@ -44,23 +45,36 @@ export function Vote(q) {
     );
   const statusBar = createStatusBar({ voteCount: 0, maxVotes: null });
   const calendarContainer = el('div');
+  const participantsComponent = createParticipants({ participants: [] });
   set(
     app,
     el(
       'div',
       {},
       head,
-      el('div', { class: 'card' }, statusBar.element, calendarContainer)
+      el('div', { class: 'card' }, statusBar.element, calendarContainer),
+      el('div', { class: 'card' }, participantsComponent.element)
     )
   );
   if (editButton) app.append(editButton);
   let calendarComponent = null;
+
+  async function fetchAndUpdateParticipants() {
+    try {
+      const data = await getParticipants({ formId });
+      participantsComponent.update({ participants: data.participants || [] });
+    } catch (err) {
+      console.error('Failed to fetch participants:', err);
+    }
+  }
+
   (async () => {
     try {
       const j = await getForm({ formId });
       head.append(el('div', { class: 'muted' }, j.message || ''));
       head.append(nicknameField);
       render(j);
+      await fetchAndUpdateParticipants();
     } catch (err) {
       calendarContainer.innerHTML = '<p>読み込み失敗</p>';
     }
@@ -97,6 +111,7 @@ export function Vote(q) {
         j.counts[date] = Math.max(0, (j.counts[date] || 0) - 1);
         processingDate = null;
         render(j);
+        await fetchAndUpdateParticipants();
         return;
       }
       const nickname = nicknameInput.value.trim();
@@ -119,6 +134,7 @@ export function Vote(q) {
       j.counts[date] = (j.counts[date] || 0) + 1;
       processingDate = null;
       render(j);
+      await fetchAndUpdateParticipants();
     };
     const calendarProps = {
       options: j.options,

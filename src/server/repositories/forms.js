@@ -98,10 +98,16 @@ async function removeVote({ formId, date, userId }) {
 async function getVoteCounts(formId) {
   const result = await pool.query(
     `
-    SELECT date, COUNT(*) as count
-    FROM votes
-    WHERE form_id = $1
-    GROUP BY date
+    SELECT
+      COALESCE(c.date, v.date) as date,
+      COALESCE(c.count, v.count, 0) as count
+    FROM (
+      SELECT date, COUNT(*) as count
+      FROM votes
+      WHERE form_id = $1
+      GROUP BY date
+    ) v
+    FULL OUTER JOIN counts c ON c.form_id = $1 AND c.date = v.date
   `,
     [formId]
   );
@@ -115,6 +121,22 @@ async function updateMessage(formId, message) {
   ]);
 }
 
+async function upsertCounts(formId, entries) {
+  if (!entries.length) return;
+  const values = entries
+    .map((_, i) => `($1, $${i * 2 + 2}, $${i * 2 + 3})`)
+    .join(',');
+  const params = [formId];
+  entries.forEach(e => {
+    params.push(e.date, e.count);
+  });
+  await pool.query(
+    `INSERT INTO counts(form_id, date, count) VALUES ${values}
+     ON CONFLICT (form_id, date) DO UPDATE SET count = EXCLUDED.count`,
+    params
+  );
+}
+
 export {
   addVote,
   createFormRecord,
@@ -123,6 +145,7 @@ export {
   getVoteCounts,
   removeVote,
   updateMessage,
+  upsertCounts,
   upsertUserNickname,
   withTransaction,
 };

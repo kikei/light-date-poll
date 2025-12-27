@@ -55,6 +55,9 @@ export const createForm = async ({ startDate, endDate, message, days }) =>
 
 export const getForm = async ({ formId }) => request(`/forms/${formId}`);
 
+export const getParticipants = async ({ formId }) =>
+  request(`/forms/${formId}/participants`);
+
 export const getFormAdmin = async ({ formId, secret }) =>
   request(`/forms/${formId}/admin?secret=${encodeURIComponent(secret)}`);
 
