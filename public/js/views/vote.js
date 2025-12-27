@@ -32,7 +32,7 @@ export function Vote(q) {
   );
   const nicknameField = el(
     'div',
-    { class: 'form-group' },
+    { class: 'form-group-inline' },
     el('label', { for: nicknameId }, 'ニックネーム'),
     nicknameInput,
     nicknameError
@@ -85,6 +85,7 @@ export function Vote(q) {
       el(
         'div',
         { class: 'card' },
+        nicknameField,
         errorMessage,
         statusBar.element,
         calendarContainer
@@ -108,7 +109,6 @@ export function Vote(q) {
     try {
       const j = await getForm({ formId });
       head.append(el('div', { class: 'muted form-message' }, j.message || ''));
-      head.append(nicknameField);
       render(j);
       await fetchAndUpdateParticipants();
     } catch (err) {

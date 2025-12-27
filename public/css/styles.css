@@ -78,8 +78,31 @@ h3 {
   color: #172b4d;
 }
 
+.form-group-inline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.form-group-inline label {
+  font-weight: 600;
+  color: #172b4d;
+  white-space: nowrap;
+  margin: 0;
+}
+
+.form-group-inline input {
+  flex: 1;
+  min-width: 0;
+}
+
 .form-message {
-  margin-bottom: 24px;
+  margin-bottom: 0;
+}
+
+.card h2 {
+  margin-bottom: 8px;
 }
 
 .field-error {
