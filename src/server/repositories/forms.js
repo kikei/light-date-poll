@@ -25,19 +25,9 @@ async function insertForm(
   );
 }
 
-async function insertInitialCounts(client, formId, options) {
-  if (!options.length) return;
-  const values = options.map((_, i) => `($1, $${i + 2}, 0)`).join(',');
-  await client.query(
-    `INSERT INTO counts(form_id, date, count) VALUES ${values}`,
-    [formId, ...options]
-  );
-}
-
 async function createFormRecord(payload) {
   return withTransaction(async client => {
     await insertForm(client, payload);
-    await insertInitialCounts(client, payload.formId, payload.options || []);
     return { formId: payload.formId, secret: payload.secret };
   });
 }
