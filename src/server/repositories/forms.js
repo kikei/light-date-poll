@@ -67,6 +67,21 @@ async function getUserNicknames(formId) {
   return result.rows.map(row => row.nickname);
 }
 
+async function getUserVoteCount(formId, userId) {
+  const result = await pool.query(
+    'SELECT COUNT(*) as count FROM votes WHERE form_id = $1 AND user_id = $2',
+    [formId, userId]
+  );
+  return Number(result.rows[0]?.count || 0);
+}
+
+async function removeUserNickname(formId, userId) {
+  await pool.query(
+    'DELETE FROM user_nicknames WHERE form_id = $1 AND user_id = $2',
+    [formId, userId]
+  );
+}
+
 async function addVote({ formId, date, userId }) {
   await pool.query(
     `
@@ -126,7 +141,9 @@ export {
   createFormRecord,
   findFormById,
   getUserNicknames,
+  getUserVoteCount,
   getVoteCounts,
+  removeUserNickname,
   removeVote,
   updateMessage,
   upsertCounts,

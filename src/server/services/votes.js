@@ -1,6 +1,8 @@
 import { pool } from '../db/pool.js';
 import {
   addVote,
+  getUserVoteCount,
+  removeUserNickname,
   removeVote,
   upsertUserNickname,
 } from '../repositories/forms.js';
@@ -30,6 +32,12 @@ async function decrementVote({ formId, date, userId }) {
   if (!options.includes(date)) return { ok: false, error: 'invalid_date' };
 
   await removeVote({ formId, date, userId });
+
+  const remainingVotes = await getUserVoteCount(formId, userId);
+  if (remainingVotes === 0) {
+    await removeUserNickname(formId, userId);
+  }
+
   return { ok: true };
 }
 
