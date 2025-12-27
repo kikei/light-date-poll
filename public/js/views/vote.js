@@ -1,9 +1,12 @@
 import { el, set } from '../utils/dom.js';
 import * as formStore from '../storage/form-store.js';
+import * as nicknameStore from '../storage/nickname-store.js';
+import * as userStore from '../storage/user-store.js';
 import * as voteStore from '../storage/vote-store.js';
-import { getForm, vote, unvote } from '../api-client.js';
+import { getForm, getParticipants, vote, unvote } from '../api-client.js';
 import { renderCalendar } from '../components/calendar.js';
 import { createStatusBar } from '../components/status-bar.js';
+import { createParticipants } from '../components/participants.js';
 
 export function Vote(q) {
   const app = el('div');
@@ -13,7 +16,39 @@ export function Vote(q) {
   }
   const saved = formStore.get(formId);
   const secret = saved?.secret;
+  const userId = userStore.getUserId(formId);
   const head = el('div', { class: 'card' }, el('h2', {}, '投票'));
+  const nicknameId = `nickname-${formId}`;
+  const nicknameInput = el('input', {
+    id: nicknameId,
+    type: 'text',
+    value: nicknameStore.getLastNickname(),
+    placeholder: '名前を入力',
+  });
+  const nicknameError = el(
+    'div',
+    { class: 'field-error' },
+    'ニックネームを入力してください'
+  );
+  const nicknameField = el(
+    'div',
+    { class: 'form-group-inline' },
+    el('label', { for: nicknameId }, 'ニックネーム'),
+    nicknameInput,
+    nicknameError
+  );
+
+  const showNicknameError = () => {
+    nicknameInput.classList.add('input-error');
+    nicknameError.classList.add('visible');
+  };
+
+  const hideNicknameError = () => {
+    nicknameInput.classList.remove('input-error');
+    nicknameError.classList.remove('visible');
+  };
+
+  nicknameInput.addEventListener('input', hideNicknameError);
   const editButton =
     secret &&
     el(
@@ -27,23 +62,55 @@ export function Vote(q) {
       '✎'
     );
   const statusBar = createStatusBar({ voteCount: 0, maxVotes: null });
+  const errorMessage = el('div', {
+    class: 'error-message',
+    style: 'display:none',
+  });
   const calendarContainer = el('div');
+  const participantsComponent = createParticipants({ participants: [] });
+
+  const showError = message => {
+    errorMessage.textContent = message;
+    errorMessage.style.display = 'block';
+    setTimeout(() => {
+      errorMessage.style.display = 'none';
+    }, 5000);
+  };
   set(
     app,
     el(
       'div',
       {},
       head,
-      el('div', { class: 'card' }, statusBar.element, calendarContainer)
+      el(
+        'div',
+        { class: 'card' },
+        nicknameField,
+        errorMessage,
+        statusBar.element,
+        calendarContainer
+      ),
+      el('div', { class: 'card' }, participantsComponent.element)
     )
   );
   if (editButton) app.append(editButton);
   let calendarComponent = null;
+
+  async function fetchAndUpdateParticipants() {
+    try {
+      const data = await getParticipants({ formId });
+      participantsComponent.update({ participants: data.participants || [] });
+    } catch (err) {
+      console.error('Failed to fetch participants:', err);
+    }
+  }
+
   (async () => {
     try {
       const j = await getForm({ formId });
-      head.append(el('div', { class: 'muted' }, j.message || ''));
+      head.append(el('div', { class: 'muted form-message' }, j.message || ''));
       render(j);
+      await fetchAndUpdateParticipants();
     } catch (err) {
       calendarContainer.innerHTML = '<p>読み込み失敗</p>';
     }
@@ -69,9 +136,9 @@ export function Vote(q) {
       render(j);
       if (isSelected) {
         try {
-          await unvote({ formId: j.formId, date });
+          await unvote({ formId: j.formId, date, userId });
         } catch (err) {
-          alert('取り消し失敗:' + err.message);
+          showError('取り消し失敗: ' + err.message);
           processingDate = null;
           render(j);
           return;
@@ -80,20 +147,30 @@ export function Vote(q) {
         j.counts[date] = Math.max(0, (j.counts[date] || 0) - 1);
         processingDate = null;
         render(j);
+        await fetchAndUpdateParticipants();
         return;
       }
-      try {
-        await vote({ formId: j.formId, date });
-      } catch (err) {
-        alert('投票失敗:' + err.message);
+      const nickname = nicknameInput.value.trim();
+      if (!nickname) {
+        showNicknameError();
         processingDate = null;
         render(j);
         return;
       }
+      try {
+        await vote({ formId: j.formId, date, userId, nickname });
+      } catch (err) {
+        showError('投票失敗: ' + err.message);
+        processingDate = null;
+        render(j);
+        return;
+      }
+      nicknameStore.saveLastNickname(nickname);
       voteStore.add(j.formId, date);
       j.counts[date] = (j.counts[date] || 0) + 1;
       processingDate = null;
       render(j);
+      await fetchAndUpdateParticipants();
     };
     const calendarProps = {
       options: j.options,

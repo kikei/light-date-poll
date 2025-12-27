@@ -2,6 +2,7 @@ import { parseISODate } from './date.js';
 
 const FORM_ID_LENGTH = 8;
 const MAX_MESSAGE_LENGTH = 2000;
+const MAX_NICKNAME_LENGTH = 40;
 
 function isValidFormId(id) {
   return typeof id === 'string' && id.length === FORM_ID_LENGTH;
@@ -22,6 +23,16 @@ function isValidMessage(message) {
   return { valid: true, safeMessage: message };
 }
 
+function isValidNickname(nickname) {
+  if (typeof nickname !== 'string')
+    return { valid: false, error: 'invalid_nickname' };
+  const normalized = nickname.replace(/\s+/g, ' ').trim();
+  if (!normalized) return { valid: false, error: 'invalid_nickname' };
+  if (normalized.length > MAX_NICKNAME_LENGTH)
+    return { valid: false, error: 'nickname_too_long' };
+  return { valid: true, safeNickname: normalized };
+}
+
 function validateDateRange(startISO, endISO) {
   const start = isValidISODate(startISO);
   if (!start.valid) return start;
@@ -32,4 +43,10 @@ function validateDateRange(startISO, endISO) {
   return { valid: true, startDate: start.date, endDate: end.date };
 }
 
-export { isValidFormId, isValidISODate, isValidMessage, validateDateRange };
+export {
+  isValidFormId,
+  isValidISODate,
+  isValidMessage,
+  isValidNickname,
+  validateDateRange,
+};
