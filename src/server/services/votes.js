@@ -1,4 +1,11 @@
 import { pool } from '../db/pool.js';
+import {
+  addVote,
+  getUserVoteCount,
+  removeUserNickname,
+  removeVote,
+  upsertUserNickname,
+} from '../repositories/forms.js';
 
 async function getFormOptions(formId) {
   const formResult = await pool.query(
@@ -9,31 +16,28 @@ async function getFormOptions(formId) {
   return formResult.rows[0].options;
 }
 
-async function incrementVote({ formId, date }) {
+async function incrementVote({ formId, date, userId, nickname }) {
   const options = await getFormOptions(formId);
   if (!options) return { ok: false, error: 'not_found' };
   if (!options.includes(date)) return { ok: false, error: 'invalid_date' };
 
-  await pool.query(
-    `
-    INSERT INTO counts(form_id, date, count)
-    VALUES ($1,$2,1)
-    ON CONFLICT (form_id, date) DO UPDATE SET count = counts.count + 1
-  `,
-    [formId, date]
-  );
+  await upsertUserNickname({ formId, userId, nickname });
+  await addVote({ formId, date, userId });
   return { ok: true };
 }
 
-async function decrementVote({ formId, date }) {
+async function decrementVote({ formId, date, userId }) {
   const options = await getFormOptions(formId);
   if (!options) return { ok: false, error: 'not_found' };
   if (!options.includes(date)) return { ok: false, error: 'invalid_date' };
 
-  await pool.query(
-    'UPDATE counts SET count = GREATEST(0, count - 1) WHERE form_id = $1 AND date = $2',
-    [formId, date]
-  );
+  await removeVote({ formId, date, userId });
+
+  const remainingVotes = await getUserVoteCount(formId, userId);
+  if (remainingVotes === 0) {
+    await removeUserNickname(formId, userId);
+  }
+
   return { ok: true };
 }
 

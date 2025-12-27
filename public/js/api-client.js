@@ -55,6 +55,9 @@ export const createForm = async ({ startDate, endDate, message, days }) =>
 
 export const getForm = async ({ formId }) => request(`/forms/${formId}`);
 
+export const getParticipants = async ({ formId }) =>
+  request(`/forms/${formId}/participants`);
+
 export const getFormAdmin = async ({ formId, secret }) =>
   request(`/forms/${formId}/admin?secret=${encodeURIComponent(secret)}`);
 
@@ -70,14 +73,14 @@ export const updateMessage = async ({ formId, secret, message }) =>
     body: { secret, message },
   });
 
-export const vote = async ({ formId, date }) =>
+export const vote = async ({ formId, date, userId, nickname }) =>
   request(`/forms/${formId}/vote`, {
     method: 'POST',
-    body: { date },
+    body: { date, userId, nickname },
   });
 
-export const unvote = async ({ formId, date }) =>
+export const unvote = async ({ formId, date, userId }) =>
   request(`/forms/${formId}/vote`, {
     method: 'DELETE',
-    body: { date },
+    body: { date, userId },
   });
