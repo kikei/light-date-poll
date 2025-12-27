@@ -88,16 +88,10 @@ async function removeVote({ formId, date, userId }) {
 async function getVoteCounts(formId) {
   const result = await pool.query(
     `
-    SELECT
-      COALESCE(c.date, v.date) as date,
-      COALESCE(c.count, v.count, 0) as count
-    FROM (
-      SELECT date, COUNT(*) as count
-      FROM votes
-      WHERE form_id = $1
-      GROUP BY date
-    ) v
-    FULL OUTER JOIN counts c ON c.form_id = $1 AND c.date = v.date
+    SELECT date, COUNT(*) as count
+    FROM votes
+    WHERE form_id = $1
+    GROUP BY date
   `,
     [formId]
   );
