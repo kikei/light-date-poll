@@ -78,6 +78,21 @@ h3 {
   color: #172b4d;
 }
 
+.form-message {
+  margin-bottom: 24px;
+}
+
+.field-error {
+  color: var(--red-danger);
+  font-size: 13px;
+  margin-top: 4px;
+  display: none;
+}
+
+.field-error.visible {
+  display: block;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(100px, 1fr));

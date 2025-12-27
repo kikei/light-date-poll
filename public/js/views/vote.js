@@ -25,12 +25,30 @@ export function Vote(q) {
     value: nicknameStore.getLastNickname(),
     placeholder: '名前を入力',
   });
+  const nicknameError = el(
+    'div',
+    { class: 'field-error' },
+    'ニックネームを入力してください'
+  );
   const nicknameField = el(
     'div',
     { class: 'form-group' },
     el('label', { for: nicknameId }, 'ニックネーム'),
-    nicknameInput
+    nicknameInput,
+    nicknameError
   );
+
+  const showNicknameError = () => {
+    nicknameInput.classList.add('input-error');
+    nicknameError.classList.add('visible');
+  };
+
+  const hideNicknameError = () => {
+    nicknameInput.classList.remove('input-error');
+    nicknameError.classList.remove('visible');
+  };
+
+  nicknameInput.addEventListener('input', hideNicknameError);
   const editButton =
     secret &&
     el(
@@ -44,15 +62,33 @@ export function Vote(q) {
       '✎'
     );
   const statusBar = createStatusBar({ voteCount: 0, maxVotes: null });
+  const errorMessage = el('div', {
+    class: 'error-message',
+    style: 'display:none',
+  });
   const calendarContainer = el('div');
   const participantsComponent = createParticipants({ participants: [] });
+
+  const showError = message => {
+    errorMessage.textContent = message;
+    errorMessage.style.display = 'block';
+    setTimeout(() => {
+      errorMessage.style.display = 'none';
+    }, 5000);
+  };
   set(
     app,
     el(
       'div',
       {},
       head,
-      el('div', { class: 'card' }, statusBar.element, calendarContainer),
+      el(
+        'div',
+        { class: 'card' },
+        errorMessage,
+        statusBar.element,
+        calendarContainer
+      ),
       el('div', { class: 'card' }, participantsComponent.element)
     )
   );
@@ -71,7 +107,7 @@ export function Vote(q) {
   (async () => {
     try {
       const j = await getForm({ formId });
-      head.append(el('div', { class: 'muted' }, j.message || ''));
+      head.append(el('div', { class: 'muted form-message' }, j.message || ''));
       head.append(nicknameField);
       render(j);
       await fetchAndUpdateParticipants();
@@ -102,7 +138,7 @@ export function Vote(q) {
         try {
           await unvote({ formId: j.formId, date, userId });
         } catch (err) {
-          alert('取り消し失敗:' + err.message);
+          showError('取り消し失敗: ' + err.message);
           processingDate = null;
           render(j);
           return;
@@ -116,7 +152,7 @@ export function Vote(q) {
       }
       const nickname = nicknameInput.value.trim();
       if (!nickname) {
-        alert('ニックネームを入力してください');
+        showNicknameError();
         processingDate = null;
         render(j);
         return;
@@ -124,7 +160,7 @@ export function Vote(q) {
       try {
         await vote({ formId: j.formId, date, userId, nickname });
       } catch (err) {
-        alert('投票失敗:' + err.message);
+        showError('投票失敗: ' + err.message);
         processingDate = null;
         render(j);
         return;
