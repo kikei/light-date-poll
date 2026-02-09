@@ -84,15 +84,3 @@ export const unvote = async ({ formId, date, userId }) =>
     method: 'DELETE',
     body: { date, userId },
   });
-
-export const setNoneOfAbove = async ({ formId, userId, nickname }) =>
-  request(`/forms/${formId}/none-of-above`, {
-    method: 'POST',
-    body: { userId, nickname },
-  });
-
-export const unsetNoneOfAbove = async ({ formId, userId }) =>
-  request(`/forms/${formId}/none-of-above`, {
-    method: 'DELETE',
-    body: { userId },
-  });

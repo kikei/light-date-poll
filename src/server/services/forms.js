@@ -1,10 +1,11 @@
 import { clampDays, pickDates, toISO } from '../utils/date.js';
 import { rid, rsecret } from '../utils/id.js';
+import { NOA_KEY } from '../utils/noa-key.js';
 import { isValidISODate, isValidMessage } from '../utils/validation.js';
 import {
   createFormRecord,
   findFormById,
-  getNoneOfAboveCount,
+  getAdminCounts,
   getVoteCounts,
   upsertCounts as persistCounts,
   updateMessage as persistMessage,
@@ -21,12 +22,7 @@ function normalizeMaxVotes(maxVotes) {
 }
 
 function rowsToCountsMap(rows) {
-  return Object.fromEntries(
-    rows.map(r => {
-      const date = r.date instanceof Date ? r.date : new Date(r.date);
-      return [date.toISOString().slice(0, 10), Number(r.count)];
-    })
-  );
+  return Object.fromEntries(rows.map(r => [String(r.date), Number(r.count)]));
 }
 
 async function getCountsMap(formId) {
@@ -37,8 +33,12 @@ async function getCountsMap(formId) {
 async function getFormWithCounts(formId) {
   const form = await findFormById(formId);
   if (!form) return null;
-  const counts = await getCountsMap(formId);
-  const noneOfAboveCount = await getNoneOfAboveCount(formId);
+  const allCounts = await getCountsMap(formId);
+  const noneOfAboveCount = allCounts[NOA_KEY] ?? 0;
+  const counts = {};
+  for (const [key, val] of Object.entries(allCounts)) {
+    if (key !== NOA_KEY) counts[key] = val;
+  }
   return { form, counts, noneOfAboveCount };
 }
 
@@ -50,7 +50,11 @@ async function createForm({ startDate, endDate, message, maxVotes }) {
 
   const messageResult = normalizeMessageInput(message);
   if (!messageResult.ok)
-    return { ok: false, error: 'invalid_message', detail: messageResult.error };
+    return {
+      ok: false,
+      error: 'invalid_message',
+      detail: messageResult.error,
+    };
 
   await createFormRecord({
     formId,
@@ -89,6 +93,10 @@ async function getFormForAdmin({ formId, secret }) {
   if (result.form.secret !== secret)
     return { ok: false, error: 'invalid_secret' };
 
+  const adminRows = await getAdminCounts(formId);
+  const adminMap = rowsToCountsMap(adminRows);
+  const noaCount = adminMap[NOA_KEY] ?? 0;
+
   return {
     ok: true,
     form: {
@@ -98,6 +106,7 @@ async function getFormForAdmin({ formId, secret }) {
       maxVotes: result.form.maxVotes,
       counts: result.counts,
       noneOfAboveCount: result.noneOfAboveCount,
+      noaCount,
     },
   };
 }
@@ -109,6 +118,13 @@ function normalizeCountsInput(counts, options) {
   const allowed = new Set(options || []);
   const entries = [];
   for (const [date, value] of Object.entries(counts)) {
+    if (date === NOA_KEY) {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return { ok: false, error: 'invalid_count' };
+      const normalized = Math.max(0, Math.floor(n));
+      entries.push({ date: NOA_KEY, count: normalized });
+      continue;
+    }
     const dateResult = isValidISODate(date);
     if (!dateResult.valid) return { ok: false, error: 'invalid_date' };
     const isoDate = toISO(dateResult.date);
@@ -147,7 +163,11 @@ async function updateMessage({ formId, secret, message }) {
 
   const messageCheck = normalizeMessageInput(message);
   if (!messageCheck.ok)
-    return { ok: false, error: 'invalid_message', detail: messageCheck.error };
+    return {
+      ok: false,
+      error: 'invalid_message',
+      detail: messageCheck.error,
+    };
 
   await persistMessage(formId, messageCheck.message);
 
