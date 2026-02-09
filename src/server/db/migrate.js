@@ -23,6 +23,11 @@ export async function migrate() {
       FOREIGN KEY (form_id) REFERENCES forms(form_id) ON DELETE CASCADE
     );
   `);
+  await pool.query(
+    `ALTER TABLE user_nicknames
+     ADD COLUMN IF NOT EXISTS
+     none_of_above BOOLEAN NOT NULL DEFAULT FALSE;`
+  );
   await pool.query(`
     CREATE TABLE IF NOT EXISTS votes(
       form_id TEXT NOT NULL,

@@ -54,16 +54,18 @@ export function renderCalendar({
     counts = {},
     voted = [],
     maxVotes = null,
+    noneOfAboveCount = 0,
     processingDate = null,
     onVote,
   } = {}) => {
     grid.innerHTML = '';
     const voteCount = voted.length;
     const limitReached = maxVotes !== null && voteCount >= maxVotes;
-    const maxCount = options.reduce(
+    const dateMax = options.reduce(
       (max, date) => Math.max(max, counts[date] || 0),
       0
     );
+    const maxCount = Math.max(dateMax, noneOfAboveCount);
 
     options.forEach(date => {
       const currentCount = counts[date] || 0;
@@ -121,9 +123,18 @@ export function renderCalendar({
         )
       );
     });
+    return { maxCount };
   };
 
-  renderGrid({ options, counts, voted, maxVotes, processingDate, onVote });
+  renderGrid({
+    options,
+    counts,
+    voted,
+    maxVotes,
+    noneOfAboveCount: 0,
+    processingDate,
+    onVote,
+  });
 
   return { calendar, update: renderGrid };
 }

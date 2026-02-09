@@ -1,5 +1,9 @@
 import express from 'express';
-import { decrementVote, incrementVote } from '../services/votes.js';
+import {
+  decrementVote,
+  incrementVote,
+  toggleNoneOfAbove,
+} from '../services/votes.js';
 import { upsertCounts } from '../services/forms.js';
 import { toISO } from '../utils/date.js';
 import {
@@ -85,6 +89,67 @@ router.delete('/forms/:id/vote', async (req, res) => {
         return res.status(400).json({ error: 'invalid date' });
     }
 
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// None-of-above ON
+router.post('/forms/:id/none-of-above', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId, nickname } = req.body || {};
+    if (!isValidFormId(id))
+      return res.status(400).json({ error: 'invalid formId' });
+    if (userId == null)
+      return res.status(400).json({ error: 'missing userId' });
+    if (!isValidUserId(userId))
+      return res.status(400).json({ error: 'invalid userId' });
+    if (!nickname) return res.status(400).json({ error: 'missing nickname' });
+    const nicknameResult = isValidNickname(nickname);
+    if (!nicknameResult.valid)
+      return res.status(400).json({ error: nicknameResult.error });
+    const safeUserId = userId.trim();
+
+    const result = await toggleNoneOfAbove({
+      formId: id,
+      userId: safeUserId,
+      nickname: nicknameResult.safeNickname,
+      value: true,
+    });
+    if (!result.ok) {
+      if (result.error === 'not_found')
+        return res.status(404).json({ error: 'form not found' });
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// None-of-above OFF
+router.delete('/forms/:id/none-of-above', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId } = req.body || {};
+    if (!isValidFormId(id))
+      return res.status(400).json({ error: 'invalid formId' });
+    if (userId == null)
+      return res.status(400).json({ error: 'missing userId' });
+    if (!isValidUserId(userId))
+      return res.status(400).json({ error: 'invalid userId' });
+    const safeUserId = userId.trim();
+
+    const result = await toggleNoneOfAbove({
+      formId: id,
+      userId: safeUserId,
+      value: false,
+    });
+    if (!result.ok) {
+      if (result.error === 'not_found')
+        return res.status(404).json({ error: 'form not found' });
+    }
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: 'server_error' });

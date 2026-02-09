@@ -598,31 +598,31 @@ textarea {
   flex-shrink: 0;
 }
 
-.participants-header {
+.respondents-header {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 12px;
 }
 
-.participants-header h3 {
+.respondents-header h3 {
   margin: 0;
   font-size: 16px;
 }
 
-.participant-count {
+.respondent-count {
   font-size: 14px;
   color: var(--text-muted);
   font-weight: 600;
 }
 
-.participant-tags {
+.respondent-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.participant-tag {
+.respondent-tag {
   display: inline-flex;
   align-items: center;
   padding: 4px 10px;
@@ -637,13 +637,109 @@ textarea {
     border-color 120ms ease;
 }
 
-.participant-tag:hover {
+.respondent-tag:hover {
   background: #dfe1e6;
   border-color: #c1c7d0;
 }
 
-.participant-empty {
+.respondent-empty {
   color: var(--text-muted);
   font-style: italic;
   padding: 8px 0;
+}
+
+.none-of-above-container {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(100px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.none-of-above-btn {
+  grid-column: 6 / 8;
+  height: auto;
+  min-height: 60px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text-strong);
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    background 140ms ease,
+    color 140ms ease;
+}
+
+.none-of-above-btn:hover {
+  background: #f8faff;
+  border-color: #c8def4;
+  box-shadow: 0 4px 10px -6px rgba(9, 30, 66, 0.3);
+}
+
+.none-of-above-btn.active {
+  background: var(--blue-primary);
+  border-color: var(--blue-primary);
+  color: #fff;
+  box-shadow: 0 6px 16px -8px rgba(0, 82, 204, 0.6);
+}
+
+.none-of-above-btn.active:hover {
+  background: #0747a6;
+  border-color: #0747a6;
+}
+
+.none-of-above-btn.active .pill-badge {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+.none-of-above-btn.active .pill-badge {
+  transform: scale(1);
+}
+
+.none-of-above-btn.processing {
+  opacity: 0.6;
+  cursor: wait;
+  pointer-events: none;
+}
+
+.none-of-above-btn.vote-tier-low:not(.active),
+.none-of-above-btn.vote-tier-medium:not(.active),
+.none-of-above-btn.vote-tier-high:not(.active),
+.none-of-above-btn.vote-tier-top:not(.active) {
+  background: #fff;
+  border-color: var(--border);
+}
+
+.none-of-above-btn.vote-tier-low:not(.active) .pill-badge {
+  background: #eceff4;
+  color: #42526e;
+  border-color: #d9dde3;
+}
+
+.none-of-above-btn.vote-tier-medium:not(.active) .pill-badge {
+  background: #d4e6ff;
+  color: #0f2f66;
+  border-color: #b3cdf5;
+}
+
+.none-of-above-btn.vote-tier-high:not(.active) .pill-badge {
+  background: #d7e6ff;
+  color: #0f2f66;
+  border-color: #9ebcef;
+}
+
+.none-of-above-btn.vote-tier-top:not(.active) .pill-badge {
+  background: #b0e8e0;
+  color: #1f4d48;
+  border-color: #8dd5ce;
 }
