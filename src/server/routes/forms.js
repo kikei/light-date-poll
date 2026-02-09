@@ -104,13 +104,13 @@ router.get(
   })
 );
 
-// Get participants
+// Get respondents
 router.get(
-  '/forms/:id/participants',
+  '/forms/:id/respondents',
   validateFormIdParam,
   asyncHandler(async (req, res) => {
-    const participants = await getUserNicknames(req.params.id);
-    res.json({ participants });
+    const respondents = await getUserNicknames(req.params.id);
+    res.json({ respondents });
   })
 );
 

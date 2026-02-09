@@ -55,8 +55,8 @@ export const createForm = async ({ startDate, endDate, message, days }) =>
 
 export const getForm = async ({ formId }) => request(`/forms/${formId}`);
 
-export const getParticipants = async ({ formId }) =>
-  request(`/forms/${formId}/participants`);
+export const getRespondents = async ({ formId }) =>
+  request(`/forms/${formId}/respondents`);
 
 export const getFormAdmin = async ({ formId, secret }) =>
   request(`/forms/${formId}/admin?secret=${encodeURIComponent(secret)}`);
@@ -83,4 +83,16 @@ export const unvote = async ({ formId, date, userId }) =>
   request(`/forms/${formId}/vote`, {
     method: 'DELETE',
     body: { date, userId },
+  });
+
+export const setNoneOfAbove = async ({ formId, userId, nickname }) =>
+  request(`/forms/${formId}/none-of-above`, {
+    method: 'POST',
+    body: { userId, nickname },
+  });
+
+export const unsetNoneOfAbove = async ({ formId, userId }) =>
+  request(`/forms/${formId}/none-of-above`, {
+    method: 'DELETE',
+    body: { userId },
   });

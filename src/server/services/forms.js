@@ -4,6 +4,7 @@ import { isValidISODate, isValidMessage } from '../utils/validation.js';
 import {
   createFormRecord,
   findFormById,
+  getNoneOfAboveCount,
   getVoteCounts,
   upsertCounts as persistCounts,
   updateMessage as persistMessage,
@@ -37,7 +38,8 @@ async function getFormWithCounts(formId) {
   const form = await findFormById(formId);
   if (!form) return null;
   const counts = await getCountsMap(formId);
-  return { form, counts };
+  const noneOfAboveCount = await getNoneOfAboveCount(formId);
+  return { form, counts, noneOfAboveCount };
 }
 
 async function createForm({ startDate, endDate, message, maxVotes }) {
@@ -77,6 +79,7 @@ async function getFormById(formId) {
     options: result.form.options,
     maxVotes: result.form.maxVotes,
     counts: result.counts,
+    noneOfAboveCount: result.noneOfAboveCount,
   };
 }
 
@@ -94,6 +97,7 @@ async function getFormForAdmin({ formId, secret }) {
       options: result.form.options,
       maxVotes: result.form.maxVotes,
       counts: result.counts,
+      noneOfAboveCount: result.noneOfAboveCount,
     },
   };
 }

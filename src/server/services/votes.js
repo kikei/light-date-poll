@@ -1,9 +1,11 @@
 import { pool } from '../db/pool.js';
 import {
   addVote,
+  getUserNoneOfAbove,
   getUserVoteCount,
   removeUserNickname,
   removeVote,
+  setNoneOfAbove,
   upsertUserNickname,
 } from '../repositories/forms.js';
 
@@ -14,6 +16,13 @@ async function getFormOptions(formId) {
   );
   if (!formResult.rowCount) return null;
   return formResult.rows[0].options;
+}
+
+async function formExists(formId) {
+  const result = await pool.query('SELECT 1 FROM forms WHERE form_id = $1', [
+    formId,
+  ]);
+  return result.rowCount > 0;
 }
 
 async function incrementVote({ formId, date, userId, nickname }) {
@@ -35,10 +44,31 @@ async function decrementVote({ formId, date, userId }) {
 
   const remainingVotes = await getUserVoteCount(formId, userId);
   if (remainingVotes === 0) {
-    await removeUserNickname(formId, userId);
+    const noa = await getUserNoneOfAbove(formId, userId);
+    if (!noa) {
+      await removeUserNickname(formId, userId);
+    }
   }
 
   return { ok: true };
 }
 
-export { decrementVote, incrementVote };
+async function toggleNoneOfAbove({ formId, userId, nickname, value }) {
+  const exists = await formExists(formId);
+  if (!exists) return { ok: false, error: 'not_found' };
+
+  if (value) {
+    await upsertUserNickname({ formId, userId, nickname });
+    await setNoneOfAbove(formId, userId, true);
+  } else {
+    await setNoneOfAbove(formId, userId, false);
+    const remainingVotes = await getUserVoteCount(formId, userId);
+    if (remainingVotes === 0) {
+      await removeUserNickname(formId, userId);
+    }
+  }
+
+  return { ok: true };
+}
+
+export { decrementVote, incrementVote, toggleNoneOfAbove };
