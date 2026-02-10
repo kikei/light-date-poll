@@ -1,6 +1,7 @@
 import { el, set, withLoading } from '../../utils/dom.js';
 import { fmtIsoWithWeekday } from '../../utils/dates.js';
 import { updateCounts } from '../../api-client.js';
+import { NOA_KEY } from '../../noa-key.js';
 
 const loadingNode = () => el('div', {}, '読み込み中...');
 const errorNode = err =>
@@ -46,6 +47,26 @@ export function createCountsSection({ formId, secret, onUpdated }) {
       );
     });
 
+    const noaInputId = `count-${form.formId}-noa`;
+    const noaInput = el('input', {
+      id: noaInputId,
+      type: 'number',
+      min: 0,
+      step: 1,
+      value: form.noaCount ?? 0,
+      style: 'width: 140px',
+    });
+    inputs.set(NOA_KEY, noaInput);
+    const noaField = el(
+      'div',
+      {
+        class: 'form-group',
+        style: 'display: flex; align-items: center; gap: 12px;',
+      },
+      el('label', { for: noaInputId, style: 'margin: 0;' }, 'それ以外'),
+      noaInput
+    );
+
     const handleSuccess = () => {
       if (onUpdated) {
         onUpdated('票数を更新しました');
@@ -70,7 +91,11 @@ export function createCountsSection({ formId, secret, onUpdated }) {
 
           await withLoading(this, async () => {
             try {
-              await updateCounts({ formId, secret, counts: payload });
+              await updateCounts({
+                formId,
+                secret,
+                counts: payload,
+              });
               handleSuccess();
             } catch (err) {
               feedback.className = 'error-message';
@@ -91,6 +116,7 @@ export function createCountsSection({ formId, secret, onUpdated }) {
         '日付ごとの票数を直接入力して変更します。'
       ),
       ...fields,
+      noaField,
       feedback,
       el('div', { class: 'row' }, updateBtn),
     ].filter(Boolean);

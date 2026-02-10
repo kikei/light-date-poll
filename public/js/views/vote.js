@@ -4,14 +4,8 @@ import * as nicknameStore from '../storage/nickname-store.js';
 import * as noaStore from '../storage/none-of-above-store.js';
 import * as userStore from '../storage/user-store.js';
 import * as voteStore from '../storage/vote-store.js';
-import {
-  getForm,
-  getRespondents,
-  vote,
-  unvote,
-  setNoneOfAbove,
-  unsetNoneOfAbove,
-} from '../api-client.js';
+import { getForm, getRespondents, vote, unvote } from '../api-client.js';
+import { NOA_KEY } from '../noa-key.js';
 import { renderCalendar } from '../components/calendar.js';
 import { createStatusBar } from '../components/status-bar.js';
 import { createRespondents } from '../components/participants.js';
@@ -217,8 +211,9 @@ export function Vote(q) {
         processingNoa = true;
         render(j);
         try {
-          await setNoneOfAbove({
+          await vote({
             formId: j.formId,
+            date: NOA_KEY,
             userId,
             nickname,
           });
@@ -238,8 +233,9 @@ export function Vote(q) {
         processingNoa = true;
         render(j);
         try {
-          await unsetNoneOfAbove({
+          await unvote({
             formId: j.formId,
+            date: NOA_KEY,
             userId,
           });
         } catch (err) {

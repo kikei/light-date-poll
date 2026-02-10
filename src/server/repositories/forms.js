@@ -113,33 +113,14 @@ async function getVoteCounts(formId) {
   return result.rows;
 }
 
-async function getNoneOfAboveCount(formId) {
+async function getAdminCounts(formId) {
   const result = await pool.query(
-    `SELECT COUNT(*) as count
-     FROM user_nicknames
-     WHERE form_id = $1 AND none_of_above = TRUE`,
+    `SELECT date, count
+     FROM counts
+     WHERE form_id = $1`,
     [formId]
   );
-  return Number(result.rows[0]?.count || 0);
-}
-
-async function setNoneOfAbove(formId, userId, value) {
-  await pool.query(
-    `UPDATE user_nicknames
-     SET none_of_above = $3
-     WHERE form_id = $1 AND user_id = $2`,
-    [formId, userId, value]
-  );
-}
-
-async function getUserNoneOfAbove(formId, userId) {
-  const result = await pool.query(
-    `SELECT none_of_above
-     FROM user_nicknames
-     WHERE form_id = $1 AND user_id = $2`,
-    [formId, userId]
-  );
-  return result.rows[0]?.none_of_above ?? false;
+  return result.rows;
 }
 
 async function updateMessage(formId, message) {
@@ -169,14 +150,12 @@ export {
   addVote,
   createFormRecord,
   findFormById,
-  getNoneOfAboveCount,
+  getAdminCounts,
   getUserNicknames,
-  getUserNoneOfAbove,
   getUserVoteCount,
   getVoteCounts,
   removeUserNickname,
   removeVote,
-  setNoneOfAbove,
   updateMessage,
   upsertCounts,
   upsertUserNickname,
