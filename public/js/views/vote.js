@@ -26,7 +26,7 @@ export function Vote(q) {
     id: nicknameId,
     type: 'text',
     value: nicknameStore.getLastNickname(),
-    placeholder: '名前を入力',
+    placeholder: '入力してください',
   });
   const nicknameError = el(
     'div',
@@ -36,7 +36,7 @@ export function Vote(q) {
   const nicknameField = el(
     'div',
     { class: 'form-group-inline' },
-    el('label', { for: nicknameId }, 'ニックネーム'),
+    el('label', { for: nicknameId }, 'ニックネーム (必須)'),
     nicknameInput,
     nicknameError
   );
@@ -100,7 +100,7 @@ export function Vote(q) {
         calendarContainer,
         noaButtonContainer
       ),
-      el('div', { class: 'card' }, respondentsComponent.element)
+      respondentsComponent.element
     )
   );
   if (editButton) app.append(editButton);

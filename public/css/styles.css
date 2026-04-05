@@ -99,6 +99,7 @@ h3 {
 
 .form-message {
   margin-bottom: 0;
+  white-space: pre-wrap;
 }
 
 .card h2 {
@@ -516,6 +517,11 @@ button:disabled {
 textarea {
   width: 100%;
   resize: vertical;
+}
+
+.form-group input {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .card + .card {

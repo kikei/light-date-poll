@@ -16,24 +16,14 @@ export function createRespondents({ respondents = [] } = {}) {
   const tagContainer = el('div', {
     class: 'respondent-tags',
   });
-  const container = el('div', {}, headerRow, tagContainer);
+  const card = el('div', { class: 'card' }, headerRow, tagContainer);
 
   const update = ({ respondents = [] } = {}) => {
     const n = respondents.length;
+    card.style.display = n === 0 ? 'none' : '';
     count.textContent = `(${n}名)`;
 
     tagContainer.innerHTML = '';
-
-    if (n === 0) {
-      const emptyMessage = el(
-        'div',
-        { class: 'respondent-empty' },
-        'まだ回答者がいません'
-      );
-      tagContainer.appendChild(emptyMessage);
-      return;
-    }
-
     respondents.forEach(nickname => {
       const tag = el('span', { class: 'respondent-tag' }, nickname);
       tagContainer.appendChild(tag);
@@ -42,5 +32,5 @@ export function createRespondents({ respondents = [] } = {}) {
 
   update({ respondents });
 
-  return { element: container, update };
+  return { element: card, update };
 }

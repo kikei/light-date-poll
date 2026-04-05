@@ -29,16 +29,8 @@ export function Edit(q) {
   }
   formStore.save(formId, secret);
   const urlSection = createUrlSection({ formId, secret });
-  const messageSection = createMessageSection({
-    formId,
-    secret,
-    onUpdated: messageSuccessText => loadForm({ messageSuccessText }),
-  });
-  const countsSection = createCountsSection({
-    formId,
-    secret,
-    onUpdated: countsSuccessText => loadForm({ countsSuccessText }),
-  });
+  const messageSection = createMessageSection({ formId, secret });
+  const countsSection = createCountsSection({ formId, secret });
   set(
     app,
     el(
@@ -51,13 +43,13 @@ export function Edit(q) {
     )
   );
 
-  async function loadForm({ countsSuccessText, messageSuccessText } = {}) {
+  async function loadForm() {
     messageSection.showLoading();
     countsSection.showLoading();
     try {
       const j = await getFormAdmin({ formId, secret });
-      messageSection.render(j, { successText: messageSuccessText });
-      countsSection.render(j, { successText: countsSuccessText });
+      messageSection.render(j);
+      countsSection.render(j);
     } catch (err) {
       messageSection.showError(err);
       countsSection.showError(err);
