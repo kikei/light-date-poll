@@ -8,7 +8,7 @@ import { el } from '../utils/dom.js';
  * @returns {{ element: HTMLElement, update: Function, showWarning: Function, reset: Function }}
  */
 export function createStatusBar({ voteCount = 0, maxVotes = null } = {}) {
-  const normalMessage = '日付を選択して下さい。';
+  const normalMessage = '日付を選択してください。';
   const warningMessage = 'これ以上、選択できません。';
   const voteStatus = el('div', { class: 'vote-status' }, normalMessage);
   const voteCounter = el('div', { class: 'vote-counter' });

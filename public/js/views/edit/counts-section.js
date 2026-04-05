@@ -7,14 +7,14 @@ const loadingNode = () => el('div', {}, '読み込み中...');
 const errorNode = err =>
   el('div', { class: 'error-message' }, '読み込み失敗: ' + err.message);
 
-export function createCountsSection({ formId, secret, onUpdated }) {
+export function createCountsSection({ formId, secret }) {
   const card = el('div', { class: 'card' }, loadingNode());
 
   const render = (form, { successText } = {}) => {
     const inputs = new Map();
     const feedback = el('div', {
       class: 'muted',
-      style: 'min-height: 18px; margin: 8px 0;',
+      style: 'min-height: 18px;',
     });
     if (successText) {
       feedback.textContent = successText;
@@ -68,12 +68,8 @@ export function createCountsSection({ formId, secret, onUpdated }) {
     );
 
     const handleSuccess = () => {
-      if (onUpdated) {
-        onUpdated('票数を更新しました');
-      } else {
-        feedback.textContent = '票数を更新しました';
-        feedback.style.color = 'var(--green-success)';
-      }
+      feedback.textContent = '票数を更新しました';
+      feedback.style.color = 'var(--green-success)';
     };
 
     const updateBtn = el(
@@ -117,8 +113,12 @@ export function createCountsSection({ formId, secret, onUpdated }) {
       ),
       ...fields,
       noaField,
-      feedback,
-      el('div', { class: 'row' }, updateBtn),
+      el(
+        'div',
+        { class: 'row', style: 'margin-top: 8px;' },
+        updateBtn,
+        feedback
+      ),
     ].filter(Boolean);
 
     set(card, el('div', {}, ...children));

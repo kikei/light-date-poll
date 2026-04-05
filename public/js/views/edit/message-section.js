@@ -5,7 +5,7 @@ const loadingNode = () => el('div', {}, '読み込み中...');
 const errorNode = err =>
   el('div', { class: 'error-message' }, '読み込み失敗: ' + err.message);
 
-export function createMessageSection({ formId, secret, onUpdated }) {
+export function createMessageSection({ formId, secret }) {
   const card = el('div', { class: 'card' }, loadingNode());
 
   const render = (form, { successText } = {}) => {
@@ -23,12 +23,8 @@ export function createMessageSection({ formId, secret, onUpdated }) {
     }
 
     const handleSuccess = () => {
-      if (onUpdated) {
-        onUpdated('メッセージを更新しました');
-      } else {
-        feedback.textContent = 'メッセージを更新しました';
-        feedback.style.color = 'var(--green-success)';
-      }
+      feedback.textContent = 'メッセージを更新しました';
+      feedback.style.color = 'var(--green-success)';
     };
 
     const updateBtn = el(
@@ -69,13 +65,12 @@ export function createMessageSection({ formId, secret, onUpdated }) {
         el(
           'div',
           { class: 'form-group', style: 'margin-bottom: 12px;' },
-          el('label', { for: textareaId }, 'メッセージ'),
           textarea,
           el(
             'div',
             {
               class: 'row',
-              style: 'margin-top: 8px; align-items: flex-start;',
+              style: 'margin-top: 8px;',
             },
             updateBtn,
             feedback
