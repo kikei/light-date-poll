@@ -59,6 +59,7 @@ cat <<'EOF' > /tmp/lambda-deploy-policy.json
       "Effect": "Allow",
       "Action": [
         "lambda:GetFunction",
+        "lambda:GetFunctionConfiguration",
         "lambda:CreateFunction",
         "lambda:UpdateFunctionCode",
         "lambda:UpdateFunctionConfiguration",
