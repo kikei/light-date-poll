@@ -48,6 +48,38 @@ async function findFormById(formId) {
   };
 }
 
+async function recordFormView({ formId, userId }) {
+  await pool.query(
+    `
+    INSERT INTO form_views(form_id, user_id)
+    VALUES ($1, $2)
+    ON CONFLICT (form_id, user_id) DO NOTHING
+  `,
+    [formId, userId]
+  );
+}
+
+async function countFormViews(formId) {
+  const result = await pool.query(
+    'SELECT COUNT(*) as count FROM form_views WHERE form_id = $1',
+    [formId]
+  );
+  return Number(result.rows[0]?.count || 0);
+}
+
+// Respondents who picked at least one date, as opposed to only reaching
+// for a special key.
+async function countDateVoters({ formId, excludeDates }) {
+  const result = await pool.query(
+    `
+    SELECT COUNT(DISTINCT user_id) as count FROM votes
+    WHERE form_id = $1 AND date <> ALL($2::text[])
+  `,
+    [formId, excludeDates]
+  );
+  return Number(result.rows[0]?.count || 0);
+}
+
 async function countRespondents(formId) {
   const result = await pool.query(
     'SELECT COUNT(DISTINCT user_id) as count FROM votes WHERE form_id = $1',
@@ -133,12 +165,15 @@ async function upsertCounts(formId, entries) {
 
 export {
   addVote,
+  countDateVoters,
+  countFormViews,
   countRespondents,
   countUserDateVotes,
   createFormRecord,
   findFormById,
   getAdminCounts,
   getVoteCounts,
+  recordFormView,
   removeVote,
   updateMessage,
   upsertCounts,

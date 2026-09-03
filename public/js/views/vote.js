@@ -4,7 +4,7 @@ import * as noaStore from '../storage/none-of-above-store.js';
 import * as notAttendingStore from '../storage/not-attending-store.js';
 import * as userStore from '../storage/user-store.js';
 import * as voteStore from '../storage/vote-store.js';
-import { getForm, vote, unvote } from '../api-client.js';
+import { getForm, recordView, vote, unvote } from '../api-client.js';
 import { NOA_KEY } from '../noa-key.js';
 import { NOT_ATTENDING_KEY } from '../not-attending-key.js';
 import { renderCalendar } from '../components/calendar.js';
@@ -103,6 +103,9 @@ export function Vote(q) {
       const j = await getForm({ formId });
       head.append(el('div', { class: 'muted form-message' }, j.message || ''));
       render(j);
+      // Not awaited: the tally is for the organizer, and a failed write
+      // costs one view rather than anything the participant should wait on.
+      recordView({ formId, userId }).catch(() => {});
     } catch (err) {
       calendarContainer.innerHTML = '<p>読み込み失敗</p>';
     }

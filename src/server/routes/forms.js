@@ -3,6 +3,7 @@ import {
   createForm,
   getFormById,
   getFormForAdmin,
+  registerFormView,
   updateMessage,
 } from '../services/forms.js';
 import {
@@ -100,6 +101,23 @@ router.get(
     const form = await getFormById(req.params.id);
     if (!form) return res.status(404).json({ error: 'not_found' });
     res.json(form);
+  })
+);
+
+// Record a view
+router.post(
+  '/forms/:id/view',
+  validateFormIdParam,
+  asyncHandler(async (req, res) => {
+    const { userId } = req.body || {};
+    if (typeof userId !== 'string' || !userId.trim())
+      return res.status(400).json({ error: 'invalid userId' });
+    const result = await registerFormView({
+      formId: req.params.id,
+      userId: userId.trim(),
+    });
+    if (!result.ok) return respondServiceError(res, result);
+    res.json({ ok: true });
   })
 );
 

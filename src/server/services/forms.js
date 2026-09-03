@@ -4,11 +4,14 @@ import { NOA_KEY } from '../utils/noa-key.js';
 import { NOT_ATTENDING_KEY } from '../utils/not-attending-key.js';
 import { isValidISODate, isValidMessage } from '../utils/validation.js';
 import {
+  countDateVoters,
+  countFormViews,
   countRespondents,
   createFormRecord,
   findFormById,
   getAdminCounts,
   getVoteCounts,
+  recordFormView,
   upsertCounts as persistCounts,
   updateMessage as persistMessage,
 } from '../repositories/forms.js';
@@ -99,12 +102,27 @@ async function getFormById(formId) {
   };
 }
 
+// A view is one browser profile that opened the vote screen, deduped by
+// the same id the votes are keyed on. Only the organizer sees the number:
+// on the vote screen it would read as being watched.
+async function registerFormView({ formId, userId }) {
+  const form = await findFormById(formId);
+  if (!form) return { ok: false, error: 'not_found' };
+  await recordFormView({ formId, userId });
+  return { ok: true };
+}
+
 async function getFormForAdmin({ formId, secret }) {
   const result = await getFormWithCounts(formId);
   if (!result) return { ok: false, error: 'not_found' };
   if (result.form.secret !== secret)
     return { ok: false, error: 'invalid_secret' };
 
+  const viewCount = await countFormViews(formId);
+  const dateVoterCount = await countDateVoters({
+    formId,
+    excludeDates: [NOA_KEY, NOT_ATTENDING_KEY],
+  });
   const adminRows = await getAdminCounts(formId);
   const adminMap = rowsToCountsMap(adminRows);
   const noaCount = adminMap[NOA_KEY] ?? 0;
@@ -118,7 +136,9 @@ async function getFormForAdmin({ formId, secret }) {
       options: result.form.options,
       maxVotes: result.form.maxVotes,
       counts: result.counts,
+      viewCount,
       respondentCount: result.respondentCount,
+      dateVoterCount,
       noneOfAboveCount: result.noneOfAboveCount,
       notAttendingCount: result.notAttendingCount,
       noaCount,
@@ -194,6 +214,7 @@ export {
   createForm,
   getFormById,
   getFormForAdmin,
+  registerFormView,
   upsertCounts,
   updateMessage,
 };

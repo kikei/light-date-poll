@@ -55,6 +55,12 @@ export const createForm = async ({ startDate, endDate, message, days }) =>
 
 export const getForm = async ({ formId }) => request(`/forms/${formId}`);
 
+export const recordView = async ({ formId, userId }) =>
+  request(`/forms/${formId}/view`, {
+    method: 'POST',
+    body: { userId },
+  });
+
 export const getFormAdmin = async ({ formId, secret }) =>
   request(`/forms/${formId}/admin?secret=${encodeURIComponent(secret)}`);
 

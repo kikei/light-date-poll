@@ -51,6 +51,15 @@ export async function migrate() {
   `
     )
     .catch(() => {});
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS form_views(
+      form_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      first_seen TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY(form_id, user_id),
+      FOREIGN KEY (form_id) REFERENCES forms(form_id) ON DELETE CASCADE
+    );
+  `);
   // Names are no longer collected: nothing reads this table.
   await pool.query('DROP TABLE IF EXISTS user_nicknames');
 }
