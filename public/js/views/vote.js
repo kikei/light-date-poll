@@ -1,16 +1,15 @@
 import { el, set } from '../utils/dom.js';
 import * as formStore from '../storage/form-store.js';
-import * as nicknameStore from '../storage/nickname-store.js';
 import * as noaStore from '../storage/none-of-above-store.js';
 import * as notAttendingStore from '../storage/not-attending-store.js';
 import * as userStore from '../storage/user-store.js';
 import * as voteStore from '../storage/vote-store.js';
-import { getForm, getRespondents, vote, unvote } from '../api-client.js';
+import { getForm, vote, unvote } from '../api-client.js';
 import { NOA_KEY } from '../noa-key.js';
 import { NOT_ATTENDING_KEY } from '../not-attending-key.js';
 import { renderCalendar } from '../components/calendar.js';
 import { createStatusBar } from '../components/status-bar.js';
-import { createRespondents } from '../components/participants.js';
+import { createRespondentCount } from '../components/respondent-count.js';
 import { createNoneOfAboveButton } from '../components/none-of-above-button.js';
 import { createNotAttendingButton } from '../components/not-attending-button.js';
 
@@ -31,37 +30,6 @@ export function Vote(q) {
   const secret = saved?.secret;
   const userId = userStore.getUserId(formId);
   const head = el('div', { class: 'card' }, el('h2', {}, '投票'));
-  const nicknameId = `nickname-${formId}`;
-  const nicknameInput = el('input', {
-    id: nicknameId,
-    type: 'text',
-    value: nicknameStore.getLastNickname(),
-    placeholder: '入力してください',
-  });
-  const nicknameError = el(
-    'div',
-    { class: 'field-error' },
-    'ニックネームを入力してください'
-  );
-  const nicknameField = el(
-    'div',
-    { class: 'form-group-inline' },
-    el('label', { for: nicknameId }, 'ニックネーム (必須)'),
-    nicknameInput,
-    nicknameError
-  );
-
-  const showNicknameError = () => {
-    nicknameInput.classList.add('input-error');
-    nicknameError.classList.add('visible');
-  };
-
-  const hideNicknameError = () => {
-    nicknameInput.classList.remove('input-error');
-    nicknameError.classList.remove('visible');
-  };
-
-  nicknameInput.addEventListener('input', hideNicknameError);
   const editButton =
     secret &&
     el(
@@ -84,9 +52,7 @@ export function Vote(q) {
   });
   const calendarContainer = el('div');
   const specialVoteRow = el('div', { class: 'special-vote-row' });
-  const respondentsComponent = createRespondents({
-    respondents: [],
-  });
+  const respondentCount = createRespondentCount({ count: 0 });
 
   const showError = message => {
     errorMessage.textContent = message;
@@ -104,13 +70,12 @@ export function Vote(q) {
       el(
         'div',
         { class: 'card' },
-        nicknameField,
         errorMessage,
         statusBar.element,
         calendarContainer,
-        specialVoteRow
-      ),
-      respondentsComponent.element
+        specialVoteRow,
+        respondentCount.element
+      )
     )
   );
   if (editButton) app.append(editButton);
@@ -118,33 +83,19 @@ export function Vote(q) {
   let noaButton = null;
   let notAttendingButton = null;
 
-  async function refreshRespondents() {
-    try {
-      const data = await getRespondents({ formId });
-      respondentsComponent.update({
-        respondents: data.respondents || [],
-      });
-    } catch (err) {
-      console.error('Failed to fetch respondents:', err);
-    }
-  }
-
   // Optimistic updates only simulate the server; re-read the real counts so
   // votes cast elsewhere show up and a no-op insert cannot inflate a badge.
-  async function refreshCounts(j) {
+  async function refreshFromServer(j) {
     try {
       const form = await getForm({ formId });
       j.counts = form.counts;
+      j.respondentCount = form.respondentCount;
       j.noneOfAboveCount = form.noneOfAboveCount;
       j.notAttendingCount = form.notAttendingCount;
       render(j);
     } catch (err) {
-      console.error('Failed to refresh counts:', err);
+      console.error('Failed to refresh form:', err);
     }
-  }
-
-  async function refreshAfterVote(j) {
-    await Promise.all([refreshCounts(j), refreshRespondents()]);
   }
 
   (async () => {
@@ -152,7 +103,6 @@ export function Vote(q) {
       const j = await getForm({ formId });
       head.append(el('div', { class: 'muted form-message' }, j.message || ''));
       render(j);
-      await refreshRespondents();
     } catch (err) {
       calendarContainer.innerHTML = '<p>読み込み失敗</p>';
     }
@@ -174,6 +124,7 @@ export function Vote(q) {
 
     statusBar.reset();
     statusBar.update({ voteCount, maxVotes });
+    respondentCount.update({ count: j.respondentCount ?? 0 });
     j.counts = j.counts || {};
     const counts = j.counts;
 
@@ -201,14 +152,7 @@ export function Vote(q) {
         j.counts[date] = Math.max(0, (j.counts[date] || 0) - 1);
         processingDate = null;
         render(j);
-        await refreshAfterVote(j);
-        return;
-      }
-      const nickname = nicknameInput.value.trim();
-      if (!nickname) {
-        showNicknameError();
-        processingDate = null;
-        render(j);
+        await refreshFromServer(j);
         return;
       }
       try {
@@ -216,7 +160,6 @@ export function Vote(q) {
           formId: j.formId,
           date,
           userId,
-          nickname,
         });
       } catch (err) {
         showError(voteFailureMessage(err));
@@ -224,22 +167,16 @@ export function Vote(q) {
         render(j);
         return;
       }
-      nicknameStore.saveLastNickname(nickname);
       voteStore.add(j.formId, date);
       j.counts[date] = (j.counts[date] || 0) + 1;
       processingDate = null;
       render(j);
-      await refreshAfterVote(j);
+      await refreshFromServer(j);
     };
 
     const handleNoaToggle = async newValue => {
       if (processingNoa) return;
       if (newValue) {
-        const nickname = nicknameInput.value.trim();
-        if (!nickname) {
-          showNicknameError();
-          return;
-        }
         processingNoa = true;
         render(j);
         try {
@@ -247,7 +184,6 @@ export function Vote(q) {
             formId: j.formId,
             date: NOA_KEY,
             userId,
-            nickname,
           });
         } catch (err) {
           showError('送信失敗: ' + err.message);
@@ -255,12 +191,11 @@ export function Vote(q) {
           render(j);
           return;
         }
-        nicknameStore.saveLastNickname(nickname);
         noaStore.set(j.formId, true);
         j.noneOfAboveCount = (j.noneOfAboveCount ?? 0) + 1;
         processingNoa = false;
         render(j);
-        await refreshAfterVote(j);
+        await refreshFromServer(j);
       } else {
         processingNoa = true;
         render(j);
@@ -280,18 +215,13 @@ export function Vote(q) {
         j.noneOfAboveCount = Math.max(0, (j.noneOfAboveCount ?? 0) - 1);
         processingNoa = false;
         render(j);
-        await refreshAfterVote(j);
+        await refreshFromServer(j);
       }
     };
 
     const handleNotAttendingToggle = async newValue => {
       if (processingNotAttending) return;
       if (newValue) {
-        const nickname = nicknameInput.value.trim();
-        if (!nickname) {
-          showNicknameError();
-          return;
-        }
         processingNotAttending = true;
         render(j);
         try {
@@ -299,7 +229,6 @@ export function Vote(q) {
             formId: j.formId,
             date: NOT_ATTENDING_KEY,
             userId,
-            nickname,
           });
         } catch (err) {
           showError('送信失敗: ' + err.message);
@@ -307,12 +236,11 @@ export function Vote(q) {
           render(j);
           return;
         }
-        nicknameStore.saveLastNickname(nickname);
         notAttendingStore.set(j.formId, true);
         j.notAttendingCount = (j.notAttendingCount ?? 0) + 1;
         processingNotAttending = false;
         render(j);
-        await refreshAfterVote(j);
+        await refreshFromServer(j);
       } else {
         processingNotAttending = true;
         render(j);
@@ -332,7 +260,7 @@ export function Vote(q) {
         j.notAttendingCount = Math.max(0, (j.notAttendingCount ?? 0) - 1);
         processingNotAttending = false;
         render(j);
-        await refreshAfterVote(j);
+        await refreshFromServer(j);
       }
     };
 

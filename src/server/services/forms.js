@@ -4,6 +4,7 @@ import { NOA_KEY } from '../utils/noa-key.js';
 import { NOT_ATTENDING_KEY } from '../utils/not-attending-key.js';
 import { isValidISODate, isValidMessage } from '../utils/validation.js';
 import {
+  countRespondents,
   createFormRecord,
   findFormById,
   getAdminCounts,
@@ -35,13 +36,20 @@ async function getFormWithCounts(formId) {
   const form = await findFormById(formId);
   if (!form) return null;
   const allCounts = await getCountsMap(formId);
+  const respondentCount = await countRespondents(formId);
   const noneOfAboveCount = allCounts[NOA_KEY] ?? 0;
   const notAttendingCount = allCounts[NOT_ATTENDING_KEY] ?? 0;
   const counts = {};
   for (const [key, val] of Object.entries(allCounts)) {
     if (key !== NOA_KEY && key !== NOT_ATTENDING_KEY) counts[key] = val;
   }
-  return { form, counts, noneOfAboveCount, notAttendingCount };
+  return {
+    form,
+    counts,
+    respondentCount,
+    noneOfAboveCount,
+    notAttendingCount,
+  };
 }
 
 async function createForm({ startDate, endDate, message, maxVotes }) {
@@ -85,6 +93,7 @@ async function getFormById(formId) {
     options: result.form.options,
     maxVotes: result.form.maxVotes,
     counts: result.counts,
+    respondentCount: result.respondentCount,
     noneOfAboveCount: result.noneOfAboveCount,
     notAttendingCount: result.notAttendingCount,
   };
@@ -109,6 +118,7 @@ async function getFormForAdmin({ formId, secret }) {
       options: result.form.options,
       maxVotes: result.form.maxVotes,
       counts: result.counts,
+      respondentCount: result.respondentCount,
       noneOfAboveCount: result.noneOfAboveCount,
       notAttendingCount: result.notAttendingCount,
       noaCount,

@@ -15,15 +15,6 @@ export async function migrate() {
     'ALTER TABLE forms ADD COLUMN IF NOT EXISTS max_votes INTEGER;'
   );
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS user_nicknames(
-      form_id TEXT NOT NULL,
-      user_id TEXT NOT NULL,
-      nickname TEXT NOT NULL,
-      PRIMARY KEY(form_id, user_id),
-      FOREIGN KEY (form_id) REFERENCES forms(form_id) ON DELETE CASCADE
-    );
-  `);
-  await pool.query(`
     CREATE TABLE IF NOT EXISTS votes(
       form_id TEXT NOT NULL,
       date    TEXT NOT NULL,
@@ -60,7 +51,6 @@ export async function migrate() {
   `
     )
     .catch(() => {});
-  await pool.query(
-    'ALTER TABLE user_nicknames DROP COLUMN IF EXISTS none_of_above'
-  );
+  // Names are no longer collected: nothing reads this table.
+  await pool.query('DROP TABLE IF EXISTS user_nicknames');
 }

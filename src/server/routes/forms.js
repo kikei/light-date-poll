@@ -5,7 +5,6 @@ import {
   getFormForAdmin,
   updateMessage,
 } from '../services/forms.js';
-import { getUserNicknames } from '../repositories/forms.js';
 import {
   isValidFormId,
   isValidMessage,
@@ -101,16 +100,6 @@ router.get(
     const form = await getFormById(req.params.id);
     if (!form) return res.status(404).json({ error: 'not_found' });
     res.json(form);
-  })
-);
-
-// Get respondents
-router.get(
-  '/forms/:id/respondents',
-  validateFormIdParam,
-  asyncHandler(async (req, res) => {
-    const respondents = await getUserNicknames(req.params.id);
-    res.json({ respondents });
   })
 );
 

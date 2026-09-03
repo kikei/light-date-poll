@@ -48,29 +48,10 @@ async function findFormById(formId) {
   };
 }
 
-async function upsertUserNickname({ formId, userId, nickname }) {
-  await pool.query(
-    `
-    INSERT INTO user_nicknames(form_id, user_id, nickname)
-    VALUES ($1, $2, $3)
-    ON CONFLICT (form_id, user_id) DO UPDATE SET nickname = EXCLUDED.nickname
-  `,
-    [formId, userId, nickname]
-  );
-}
-
-async function getUserNicknames(formId) {
+async function countRespondents(formId) {
   const result = await pool.query(
-    'SELECT DISTINCT nickname FROM user_nicknames WHERE form_id = $1 ORDER BY nickname',
+    'SELECT COUNT(DISTINCT user_id) as count FROM votes WHERE form_id = $1',
     [formId]
-  );
-  return result.rows.map(row => row.nickname);
-}
-
-async function getUserVoteCount(formId, userId) {
-  const result = await pool.query(
-    'SELECT COUNT(*) as count FROM votes WHERE form_id = $1 AND user_id = $2',
-    [formId, userId]
   );
   return Number(result.rows[0]?.count || 0);
 }
@@ -84,13 +65,6 @@ async function countUserDateVotes({ formId, userId, excludeDates }) {
     [formId, userId, excludeDates]
   );
   return Number(result.rows[0]?.count || 0);
-}
-
-async function removeUserNickname(formId, userId) {
-  await pool.query(
-    'DELETE FROM user_nicknames WHERE form_id = $1 AND user_id = $2',
-    [formId, userId]
-  );
 }
 
 async function addVote({ formId, date, userId }) {
@@ -159,17 +133,14 @@ async function upsertCounts(formId, entries) {
 
 export {
   addVote,
+  countRespondents,
   countUserDateVotes,
   createFormRecord,
   findFormById,
   getAdminCounts,
-  getUserNicknames,
-  getUserVoteCount,
   getVoteCounts,
-  removeUserNickname,
   removeVote,
   updateMessage,
   upsertCounts,
-  upsertUserNickname,
   withTransaction,
 };

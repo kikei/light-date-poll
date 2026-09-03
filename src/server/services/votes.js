@@ -4,10 +4,7 @@ import {
   addVote,
   countUserDateVotes,
   findFormById,
-  getUserVoteCount,
-  removeUserNickname,
   removeVote,
-  upsertUserNickname,
 } from '../repositories/forms.js';
 
 function isSpecialKey(date) {
@@ -27,7 +24,7 @@ async function isOverMaxVotes({ formId, userId, date, maxVotes }) {
   return held >= maxVotes;
 }
 
-async function incrementVote({ formId, date, userId, nickname }) {
+async function incrementVote({ formId, date, userId }) {
   const form = await findFormById(formId);
   if (!form) return { ok: false, error: 'not_found' };
 
@@ -43,7 +40,6 @@ async function incrementVote({ formId, date, userId, nickname }) {
     if (overLimit) return { ok: false, error: 'max_votes_exceeded' };
   }
 
-  await upsertUserNickname({ formId, userId, nickname });
   await addVote({ formId, date, userId });
   return { ok: true };
 }
@@ -55,12 +51,6 @@ async function decrementVote({ formId, date, userId }) {
     return { ok: false, error: 'invalid_date' };
 
   await removeVote({ formId, date, userId });
-
-  const remainingVotes = await getUserVoteCount(formId, userId);
-  if (remainingVotes === 0) {
-    await removeUserNickname(formId, userId);
-  }
-
   return { ok: true };
 }
 
