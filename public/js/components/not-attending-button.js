@@ -10,7 +10,7 @@ const voteTier = (count, max) => {
 };
 
 /**
- * Create a「それ以外」toggle button
+ * Create a「参加しない」toggle button
  * @param {Object} params
  * @param {boolean} params.active
  * @param {number} params.count
@@ -22,7 +22,7 @@ const voteTier = (count, max) => {
  *   update: Function,
  * }}
  */
-export function createNoneOfAboveButton({
+export function createNotAttendingButton({
   active = false,
   count = 0,
   maxCount = 0,
@@ -30,11 +30,11 @@ export function createNoneOfAboveButton({
   onToggle,
 } = {}) {
   const badge = el('span', { class: 'pill-badge' });
-  const label = el('span', { class: 'none-of-above-label' }, 'それ以外');
+  const label = el('span', { class: 'not-attending-label' }, '参加しない');
   const button = el(
     'button',
     {
-      class: 'none-of-above-btn',
+      class: 'not-attending-btn',
       type: 'button',
     },
     label,
@@ -58,7 +58,7 @@ export function createNoneOfAboveButton({
     const scale = mc > 0 ? 0.92 + ratio * 0.16 : 1;
     badge.style.setProperty('--badge-scale', scale.toFixed(3));
 
-    button.className = 'none-of-above-btn';
+    button.className = 'not-attending-btn';
     button.classList.add(tier);
     if (a) button.classList.add('active');
     if (p) button.classList.add('processing');

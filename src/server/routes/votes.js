@@ -3,6 +3,7 @@ import { decrementVote, incrementVote } from '../services/votes.js';
 import { upsertCounts } from '../services/forms.js';
 import { toISO } from '../utils/date.js';
 import { NOA_KEY } from '../utils/noa-key.js';
+import { NOT_ATTENDING_KEY } from '../utils/not-attending-key.js';
 import {
   isValidFormId,
   isValidISODate,
@@ -16,7 +17,8 @@ function isValidUserId(userId) {
 }
 
 function parseDate(raw) {
-  if (raw === NOA_KEY) return { ok: true, date: NOA_KEY };
+  if (raw === NOA_KEY || raw === NOT_ATTENDING_KEY)
+    return { ok: true, date: raw };
   const result = isValidISODate(raw);
   if (!result.valid) return { ok: false, error: result.error };
   return { ok: true, date: toISO(result.date) };

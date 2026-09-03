@@ -654,7 +654,7 @@ textarea {
   padding: 8px 0;
 }
 
-.none-of-above-container {
+.special-vote-row {
   display: grid;
   grid-template-columns: repeat(7, minmax(100px, 1fr));
   gap: 12px;
@@ -662,7 +662,7 @@ textarea {
 }
 
 .none-of-above-btn {
-  grid-column: 6 / 8;
+  grid-column: 4 / 6;
   height: auto;
   min-height: 60px;
   padding: 12px 14px;
@@ -745,6 +745,95 @@ textarea {
 }
 
 .none-of-above-btn.vote-tier-top:not(.active) .pill-badge {
+  background: #b0e8e0;
+  color: #1f4d48;
+  border-color: #8dd5ce;
+}
+
+.not-attending-btn {
+  grid-column: 6 / 8;
+  height: auto;
+  min-height: 60px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text-strong);
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    background 140ms ease,
+    color 140ms ease;
+}
+
+.not-attending-btn:hover {
+  background: #f8faff;
+  border-color: #c8def4;
+  box-shadow: 0 4px 10px -6px rgba(9, 30, 66, 0.3);
+}
+
+.not-attending-btn.active {
+  background: var(--blue-primary);
+  border-color: var(--blue-primary);
+  color: #fff;
+  box-shadow: 0 6px 16px -8px rgba(0, 82, 204, 0.6);
+}
+
+.not-attending-btn.active:hover {
+  background: #0747a6;
+  border-color: #0747a6;
+}
+
+.not-attending-btn.active .pill-badge {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+.not-attending-btn.active .pill-badge {
+  transform: scale(1);
+}
+
+.not-attending-btn.processing {
+  opacity: 0.6;
+  cursor: wait;
+  pointer-events: none;
+}
+
+.not-attending-btn.vote-tier-low:not(.active),
+.not-attending-btn.vote-tier-medium:not(.active),
+.not-attending-btn.vote-tier-high:not(.active),
+.not-attending-btn.vote-tier-top:not(.active) {
+  background: #fff;
+  border-color: var(--border);
+}
+
+.not-attending-btn.vote-tier-low:not(.active) .pill-badge {
+  background: #eceff4;
+  color: #42526e;
+  border-color: #d9dde3;
+}
+
+.not-attending-btn.vote-tier-medium:not(.active) .pill-badge {
+  background: #d4e6ff;
+  color: #0f2f66;
+  border-color: #b3cdf5;
+}
+
+.not-attending-btn.vote-tier-high:not(.active) .pill-badge {
+  background: #d7e6ff;
+  color: #0f2f66;
+  border-color: #9ebcef;
+}
+
+.not-attending-btn.vote-tier-top:not(.active) .pill-badge {
   background: #b0e8e0;
   color: #1f4d48;
   border-color: #8dd5ce;

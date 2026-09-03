@@ -2,6 +2,7 @@ import { el, set, withLoading } from '../../utils/dom.js';
 import { fmtIsoWithWeekday } from '../../utils/dates.js';
 import { updateCounts } from '../../api-client.js';
 import { NOA_KEY } from '../../noa-key.js';
+import { NOT_ATTENDING_KEY } from '../../not-attending-key.js';
 
 const loadingNode = () => el('div', {}, '読み込み中...');
 const errorNode = err =>
@@ -67,6 +68,30 @@ export function createCountsSection({ formId, secret }) {
       noaInput
     );
 
+    const notAttendingInputId = `count-${form.formId}-not-attending`;
+    const notAttendingInput = el('input', {
+      id: notAttendingInputId,
+      type: 'number',
+      min: 0,
+      step: 1,
+      value: form.notAttendingAdminCount ?? 0,
+      style: 'width: 140px',
+    });
+    inputs.set(NOT_ATTENDING_KEY, notAttendingInput);
+    const notAttendingField = el(
+      'div',
+      {
+        class: 'form-group',
+        style: 'display: flex; align-items: center; gap: 12px;',
+      },
+      el(
+        'label',
+        { for: notAttendingInputId, style: 'margin: 0;' },
+        '参加しない'
+      ),
+      notAttendingInput
+    );
+
     const handleSuccess = () => {
       feedback.textContent = '票数を更新しました';
       feedback.style.color = 'var(--green-success)';
@@ -113,6 +138,7 @@ export function createCountsSection({ formId, secret }) {
       ),
       ...fields,
       noaField,
+      notAttendingField,
       el(
         'div',
         { class: 'row', style: 'margin-top: 8px;' },

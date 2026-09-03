@@ -20,19 +20,43 @@
 - `#/vote?formId={id}`: 投票画面
 - `#/edit?formId={id}&secret={token}`: 編集画面
 
+## 特殊な選択肢(それ以外・参加しない)
+
+候補日以外に、参加者は次の 2 つを独立に選べる。日付やもう一方の選択と 排他制御は行わない(緩い日程調整という目的に対し、排他にする効果が薄いため)。
+
+- それ以外: 候補日のどれも都合が合わない。
+- 参加しない: そもそも参加しない。「それ以外」とは意味が異なる
+  (候補日次第では参加しうる、と参加そのものをしない、の違い)。
+
+実装上はどちらも「日付」の代わりに使う特殊な文字列キー (`none-of-above` / `not-attending`) として、通常の日付候補と同じ投票の仕組み (votes テーブルへの追加・取消) で実現している。
+
 ## データモデル
+
 forms テーブルは以下の列で構成する。
 - form_id: text。主キー。
 - message: text。投票画面に表示する案内文。
 - options: jsonb。日付の ISO 配列。
 - secret: text。編集用シークレット。
+- max_votes: integer。参加者 1 人が投票できる日付数の上限。null なら無制限。
 - created_at: timestamptz。作成時刻。
 
-counts テーブルは以下の列で構成する。
+votes テーブルは参加者ごとの投票を 1 行として持つ。
+- form_id: text。外部キー。forms.form_id を参照する (form 削除時に連動削除)。
+- date: text。候補日 (ISO 形式)、または特殊な選択肢のキー (`none-of-above` / `not-attending`)。
+- user_id: text。参加者を識別する端末単位の ID (ブラウザの localStorage で保持し、匿名のまま端末単位で区別する)。
+複合主キーは (form_id, date, user_id) とする。投票画面に表示する票数はこのテーブルの行数を date ごとに集計した値である。
+
+user_nicknames テーブルは参加者のニックネームを保持する。
 - form_id: text。外部キー。forms.form_id を参照する。
-- date: date。候補日。
-- count: integer。票数。既定値は 0。
-複合主キーは (form_id, date) とする。
+- user_id: text。votes.user_id と対応する。
+- nickname: text。
+複合主キーは (form_id, user_id) とする。ある参加者の投票が 0 件になるとこの行は削除する。
+
+counts テーブルは編集画面の「票数を編集」機能が使う、手動入力用の値を持つ。
+- form_id: text。外部キー。forms.form_id を参照する。
+- date: text。候補日、または特殊な選択肢のキー。
+- count: integer。手動で設定した値。既定値は 0。
+複合主キーは (form_id, date) とする。**現状、この値は投票画面の表示には反映されない**(投票画面は votes テーブルの集計のみを表示する)。編集画面の候補日ごとの入力欄は votes 由来の値を初期値として表示するが、保存するとこの counts テーブルへ書き込まれるだけで、次に投票画面を開いても反映されない。実質的に生きていない機能になっている可能性があり、要確認。
 
 ## API
 サーバは以下のエンドポイントを提供する。すべて JSON を返す。

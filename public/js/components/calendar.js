@@ -55,6 +55,7 @@ export function renderCalendar({
     voted = [],
     maxVotes = null,
     noneOfAboveCount = 0,
+    notAttendingCount = 0,
     processingDate = null,
     onVote,
   } = {}) => {
@@ -65,7 +66,7 @@ export function renderCalendar({
       (max, date) => Math.max(max, counts[date] || 0),
       0
     );
-    const maxCount = Math.max(dateMax, noneOfAboveCount);
+    const maxCount = Math.max(dateMax, noneOfAboveCount, notAttendingCount);
 
     options.forEach(date => {
       const currentCount = counts[date] || 0;
@@ -132,6 +133,7 @@ export function renderCalendar({
     voted,
     maxVotes,
     noneOfAboveCount: 0,
+    notAttendingCount: 0,
     processingDate,
     onVote,
   });
