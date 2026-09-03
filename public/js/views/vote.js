@@ -111,7 +111,7 @@ export function Vote(q) {
   let noaButton = null;
   let notAttendingButton = null;
 
-  async function fetchAndUpdateRespondents() {
+  async function refreshRespondents() {
     try {
       const data = await getRespondents({ formId });
       respondentsComponent.update({
@@ -122,12 +122,30 @@ export function Vote(q) {
     }
   }
 
+  // Optimistic updates only simulate the server; re-read the real counts so
+  // votes cast elsewhere show up and a no-op insert cannot inflate a badge.
+  async function refreshCounts(j) {
+    try {
+      const form = await getForm({ formId });
+      j.counts = form.counts;
+      j.noneOfAboveCount = form.noneOfAboveCount;
+      j.notAttendingCount = form.notAttendingCount;
+      render(j);
+    } catch (err) {
+      console.error('Failed to refresh counts:', err);
+    }
+  }
+
+  async function refreshAfterVote(j) {
+    await Promise.all([refreshCounts(j), refreshRespondents()]);
+  }
+
   (async () => {
     try {
       const j = await getForm({ formId });
       head.append(el('div', { class: 'muted form-message' }, j.message || ''));
       render(j);
-      await fetchAndUpdateRespondents();
+      await refreshRespondents();
     } catch (err) {
       calendarContainer.innerHTML = '<p>読み込み失敗</p>';
     }
@@ -176,7 +194,7 @@ export function Vote(q) {
         j.counts[date] = Math.max(0, (j.counts[date] || 0) - 1);
         processingDate = null;
         render(j);
-        await fetchAndUpdateRespondents();
+        await refreshAfterVote(j);
         return;
       }
       const nickname = nicknameInput.value.trim();
@@ -204,7 +222,7 @@ export function Vote(q) {
       j.counts[date] = (j.counts[date] || 0) + 1;
       processingDate = null;
       render(j);
-      await fetchAndUpdateRespondents();
+      await refreshAfterVote(j);
     };
 
     const handleNoaToggle = async newValue => {
@@ -235,7 +253,7 @@ export function Vote(q) {
         j.noneOfAboveCount = (j.noneOfAboveCount ?? 0) + 1;
         processingNoa = false;
         render(j);
-        await fetchAndUpdateRespondents();
+        await refreshAfterVote(j);
       } else {
         processingNoa = true;
         render(j);
@@ -255,7 +273,7 @@ export function Vote(q) {
         j.noneOfAboveCount = Math.max(0, (j.noneOfAboveCount ?? 0) - 1);
         processingNoa = false;
         render(j);
-        await fetchAndUpdateRespondents();
+        await refreshAfterVote(j);
       }
     };
 
@@ -287,7 +305,7 @@ export function Vote(q) {
         j.notAttendingCount = (j.notAttendingCount ?? 0) + 1;
         processingNotAttending = false;
         render(j);
-        await fetchAndUpdateRespondents();
+        await refreshAfterVote(j);
       } else {
         processingNotAttending = true;
         render(j);
@@ -307,7 +325,7 @@ export function Vote(q) {
         j.notAttendingCount = Math.max(0, (j.notAttendingCount ?? 0) - 1);
         processingNotAttending = false;
         render(j);
-        await fetchAndUpdateRespondents();
+        await refreshAfterVote(j);
       }
     };
 
