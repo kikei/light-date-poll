@@ -3,9 +3,9 @@ import {
   createForm,
   getFormById,
   getFormForAdmin,
+  registerFormView,
   updateMessage,
 } from '../services/forms.js';
-import { getUserNicknames } from '../repositories/forms.js';
 import {
   isValidFormId,
   isValidMessage,
@@ -104,13 +104,20 @@ router.get(
   })
 );
 
-// Get respondents
-router.get(
-  '/forms/:id/respondents',
+// Record a view
+router.post(
+  '/forms/:id/view',
   validateFormIdParam,
   asyncHandler(async (req, res) => {
-    const respondents = await getUserNicknames(req.params.id);
-    res.json({ respondents });
+    const { userId } = req.body || {};
+    if (typeof userId !== 'string' || !userId.trim())
+      return res.status(400).json({ error: 'invalid userId' });
+    const result = await registerFormView({
+      formId: req.params.id,
+      userId: userId.trim(),
+    });
+    if (!result.ok) return respondServiceError(res, result);
+    res.json({ ok: true });
   })
 );
 

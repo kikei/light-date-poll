@@ -1,7 +1,7 @@
 import { el, set } from '../utils/dom.js';
 import * as formStore from '../storage/form-store.js';
 import { getFormAdmin } from '../api-client.js';
-import { createUrlSection } from './edit/url-section.js';
+import { createOverviewSection } from './edit/overview-section.js';
 import { createMessageSection } from './edit/message-section.js';
 import { createCountsSection } from './edit/counts-section.js';
 
@@ -28,7 +28,7 @@ export function Edit(q) {
     );
   }
   formStore.save(formId, secret);
-  const urlSection = createUrlSection({ formId, secret });
+  const overviewSection = createOverviewSection({ formId, secret });
   const messageSection = createMessageSection({ formId, secret });
   const countsSection = createCountsSection({ formId, secret });
   set(
@@ -37,20 +37,23 @@ export function Edit(q) {
       'div',
       {},
       el('h2', {}, 'フォーム編集'),
-      urlSection.element,
+      overviewSection.element,
       messageSection.element,
       countsSection.element
     )
   );
 
   async function loadForm() {
+    overviewSection.showLoading();
     messageSection.showLoading();
     countsSection.showLoading();
     try {
       const j = await getFormAdmin({ formId, secret });
+      overviewSection.render(j);
       messageSection.render(j);
       countsSection.render(j);
     } catch (err) {
+      overviewSection.showError(err);
       messageSection.showError(err);
       countsSection.showError(err);
     }

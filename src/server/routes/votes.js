@@ -4,11 +4,7 @@ import { upsertCounts } from '../services/forms.js';
 import { toISO } from '../utils/date.js';
 import { NOA_KEY } from '../utils/noa-key.js';
 import { NOT_ATTENDING_KEY } from '../utils/not-attending-key.js';
-import {
-  isValidFormId,
-  isValidISODate,
-  isValidNickname,
-} from '../utils/validation.js';
+import { isValidFormId, isValidISODate } from '../utils/validation.js';
 
 const router = express.Router();
 
@@ -28,7 +24,7 @@ function parseDate(raw) {
 router.post('/forms/:id/vote', async (req, res) => {
   try {
     const { id } = req.params;
-    const { date, nickname, userId } = req.body || {};
+    const { date, userId } = req.body || {};
     if (!isValidFormId(id))
       return res.status(400).json({ error: 'invalid formId' });
     if (!date) return res.status(400).json({ error: 'missing date' });
@@ -36,19 +32,14 @@ router.post('/forms/:id/vote', async (req, res) => {
       return res.status(400).json({ error: 'missing userId' });
     if (!isValidUserId(userId))
       return res.status(400).json({ error: 'invalid userId' });
-    if (!nickname) return res.status(400).json({ error: 'missing nickname' });
     const parsed = parseDate(date);
     if (!parsed.ok) return res.status(400).json({ error: parsed.error });
-    const nicknameResult = isValidNickname(nickname);
-    if (!nicknameResult.valid)
-      return res.status(400).json({ error: nicknameResult.error });
     const safeUserId = userId.trim();
 
     const result = await incrementVote({
       formId: id,
       date: parsed.date,
       userId: safeUserId,
-      nickname: nicknameResult.safeNickname,
     });
     if (!result.ok) {
       if (result.error === 'not_found')

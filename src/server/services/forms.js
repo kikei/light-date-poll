@@ -4,10 +4,14 @@ import { NOA_KEY } from '../utils/noa-key.js';
 import { NOT_ATTENDING_KEY } from '../utils/not-attending-key.js';
 import { isValidISODate, isValidMessage } from '../utils/validation.js';
 import {
+  countDateVoters,
+  countFormViews,
+  countRespondents,
   createFormRecord,
   findFormById,
   getAdminCounts,
   getVoteCounts,
+  recordFormView,
   upsertCounts as persistCounts,
   updateMessage as persistMessage,
 } from '../repositories/forms.js';
@@ -35,13 +39,20 @@ async function getFormWithCounts(formId) {
   const form = await findFormById(formId);
   if (!form) return null;
   const allCounts = await getCountsMap(formId);
+  const respondentCount = await countRespondents(formId);
   const noneOfAboveCount = allCounts[NOA_KEY] ?? 0;
   const notAttendingCount = allCounts[NOT_ATTENDING_KEY] ?? 0;
   const counts = {};
   for (const [key, val] of Object.entries(allCounts)) {
     if (key !== NOA_KEY && key !== NOT_ATTENDING_KEY) counts[key] = val;
   }
-  return { form, counts, noneOfAboveCount, notAttendingCount };
+  return {
+    form,
+    counts,
+    respondentCount,
+    noneOfAboveCount,
+    notAttendingCount,
+  };
 }
 
 async function createForm({ startDate, endDate, message, maxVotes }) {
@@ -85,9 +96,20 @@ async function getFormById(formId) {
     options: result.form.options,
     maxVotes: result.form.maxVotes,
     counts: result.counts,
+    respondentCount: result.respondentCount,
     noneOfAboveCount: result.noneOfAboveCount,
     notAttendingCount: result.notAttendingCount,
   };
+}
+
+// A view is one browser profile that opened the vote screen, deduped by
+// the same id the votes are keyed on. Only the organizer sees the number:
+// on the vote screen it would read as being watched.
+async function registerFormView({ formId, userId }) {
+  const form = await findFormById(formId);
+  if (!form) return { ok: false, error: 'not_found' };
+  await recordFormView({ formId, userId });
+  return { ok: true };
 }
 
 async function getFormForAdmin({ formId, secret }) {
@@ -96,6 +118,11 @@ async function getFormForAdmin({ formId, secret }) {
   if (result.form.secret !== secret)
     return { ok: false, error: 'invalid_secret' };
 
+  const viewCount = await countFormViews(formId);
+  const dateVoterCount = await countDateVoters({
+    formId,
+    excludeDates: [NOA_KEY, NOT_ATTENDING_KEY],
+  });
   const adminRows = await getAdminCounts(formId);
   const adminMap = rowsToCountsMap(adminRows);
   const noaCount = adminMap[NOA_KEY] ?? 0;
@@ -109,6 +136,9 @@ async function getFormForAdmin({ formId, secret }) {
       options: result.form.options,
       maxVotes: result.form.maxVotes,
       counts: result.counts,
+      viewCount,
+      respondentCount: result.respondentCount,
+      dateVoterCount,
       noneOfAboveCount: result.noneOfAboveCount,
       notAttendingCount: result.notAttendingCount,
       noaCount,
@@ -184,6 +214,7 @@ export {
   createForm,
   getFormById,
   getFormForAdmin,
+  registerFormView,
   upsertCounts,
   updateMessage,
 };

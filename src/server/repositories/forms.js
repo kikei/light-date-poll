@@ -48,29 +48,42 @@ async function findFormById(formId) {
   };
 }
 
-async function upsertUserNickname({ formId, userId, nickname }) {
+async function recordFormView({ formId, userId }) {
   await pool.query(
     `
-    INSERT INTO user_nicknames(form_id, user_id, nickname)
-    VALUES ($1, $2, $3)
-    ON CONFLICT (form_id, user_id) DO UPDATE SET nickname = EXCLUDED.nickname
+    INSERT INTO form_views(form_id, user_id)
+    VALUES ($1, $2)
+    ON CONFLICT (form_id, user_id) DO NOTHING
   `,
-    [formId, userId, nickname]
+    [formId, userId]
   );
 }
 
-async function getUserNicknames(formId) {
+async function countFormViews(formId) {
   const result = await pool.query(
-    'SELECT DISTINCT nickname FROM user_nicknames WHERE form_id = $1 ORDER BY nickname',
+    'SELECT COUNT(*) as count FROM form_views WHERE form_id = $1',
     [formId]
   );
-  return result.rows.map(row => row.nickname);
+  return Number(result.rows[0]?.count || 0);
 }
 
-async function getUserVoteCount(formId, userId) {
+// Respondents who picked at least one date, as opposed to only reaching
+// for a special key.
+async function countDateVoters({ formId, excludeDates }) {
   const result = await pool.query(
-    'SELECT COUNT(*) as count FROM votes WHERE form_id = $1 AND user_id = $2',
-    [formId, userId]
+    `
+    SELECT COUNT(DISTINCT user_id) as count FROM votes
+    WHERE form_id = $1 AND date <> ALL($2::text[])
+  `,
+    [formId, excludeDates]
+  );
+  return Number(result.rows[0]?.count || 0);
+}
+
+async function countRespondents(formId) {
+  const result = await pool.query(
+    'SELECT COUNT(DISTINCT user_id) as count FROM votes WHERE form_id = $1',
+    [formId]
   );
   return Number(result.rows[0]?.count || 0);
 }
@@ -84,13 +97,6 @@ async function countUserDateVotes({ formId, userId, excludeDates }) {
     [formId, userId, excludeDates]
   );
   return Number(result.rows[0]?.count || 0);
-}
-
-async function removeUserNickname(formId, userId) {
-  await pool.query(
-    'DELETE FROM user_nicknames WHERE form_id = $1 AND user_id = $2',
-    [formId, userId]
-  );
 }
 
 async function addVote({ formId, date, userId }) {
@@ -159,17 +165,17 @@ async function upsertCounts(formId, entries) {
 
 export {
   addVote,
+  countDateVoters,
+  countFormViews,
+  countRespondents,
   countUserDateVotes,
   createFormRecord,
   findFormById,
   getAdminCounts,
-  getUserNicknames,
-  getUserVoteCount,
   getVoteCounts,
-  removeUserNickname,
+  recordFormView,
   removeVote,
   updateMessage,
   upsertCounts,
-  upsertUserNickname,
   withTransaction,
 };
