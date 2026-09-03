@@ -1,5 +1,6 @@
 import { pool } from '../db/pool.js';
 import { NOA_KEY } from '../utils/noa-key.js';
+import { NOT_ATTENDING_KEY } from '../utils/not-attending-key.js';
 import {
   addVote,
   getUserVoteCount,
@@ -7,6 +8,10 @@ import {
   removeVote,
   upsertUserNickname,
 } from '../repositories/forms.js';
+
+function isSpecialKey(date) {
+  return date === NOA_KEY || date === NOT_ATTENDING_KEY;
+}
 
 async function getFormOptions(formId) {
   const formResult = await pool.query(
@@ -20,7 +25,7 @@ async function getFormOptions(formId) {
 async function incrementVote({ formId, date, userId, nickname }) {
   const options = await getFormOptions(formId);
   if (!options) return { ok: false, error: 'not_found' };
-  if (date !== NOA_KEY && !options.includes(date))
+  if (!isSpecialKey(date) && !options.includes(date))
     return { ok: false, error: 'invalid_date' };
 
   await upsertUserNickname({ formId, userId, nickname });
@@ -31,7 +36,7 @@ async function incrementVote({ formId, date, userId, nickname }) {
 async function decrementVote({ formId, date, userId }) {
   const options = await getFormOptions(formId);
   if (!options) return { ok: false, error: 'not_found' };
-  if (date !== NOA_KEY && !options.includes(date))
+  if (!isSpecialKey(date) && !options.includes(date))
     return { ok: false, error: 'invalid_date' };
 
   await removeVote({ formId, date, userId });

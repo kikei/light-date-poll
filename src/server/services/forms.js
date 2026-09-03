@@ -1,6 +1,7 @@
 import { clampDays, pickDates, toISO } from '../utils/date.js';
 import { rid, rsecret } from '../utils/id.js';
 import { NOA_KEY } from '../utils/noa-key.js';
+import { NOT_ATTENDING_KEY } from '../utils/not-attending-key.js';
 import { isValidISODate, isValidMessage } from '../utils/validation.js';
 import {
   createFormRecord,
@@ -35,11 +36,12 @@ async function getFormWithCounts(formId) {
   if (!form) return null;
   const allCounts = await getCountsMap(formId);
   const noneOfAboveCount = allCounts[NOA_KEY] ?? 0;
+  const notAttendingCount = allCounts[NOT_ATTENDING_KEY] ?? 0;
   const counts = {};
   for (const [key, val] of Object.entries(allCounts)) {
-    if (key !== NOA_KEY) counts[key] = val;
+    if (key !== NOA_KEY && key !== NOT_ATTENDING_KEY) counts[key] = val;
   }
-  return { form, counts, noneOfAboveCount };
+  return { form, counts, noneOfAboveCount, notAttendingCount };
 }
 
 async function createForm({ startDate, endDate, message, maxVotes }) {
@@ -84,6 +86,7 @@ async function getFormById(formId) {
     maxVotes: result.form.maxVotes,
     counts: result.counts,
     noneOfAboveCount: result.noneOfAboveCount,
+    notAttendingCount: result.notAttendingCount,
   };
 }
 
@@ -96,6 +99,7 @@ async function getFormForAdmin({ formId, secret }) {
   const adminRows = await getAdminCounts(formId);
   const adminMap = rowsToCountsMap(adminRows);
   const noaCount = adminMap[NOA_KEY] ?? 0;
+  const notAttendingAdminCount = adminMap[NOT_ATTENDING_KEY] ?? 0;
 
   return {
     ok: true,
@@ -106,7 +110,9 @@ async function getFormForAdmin({ formId, secret }) {
       maxVotes: result.form.maxVotes,
       counts: result.counts,
       noneOfAboveCount: result.noneOfAboveCount,
+      notAttendingCount: result.notAttendingCount,
       noaCount,
+      notAttendingAdminCount,
     },
   };
 }
@@ -118,11 +124,11 @@ function normalizeCountsInput(counts, options) {
   const allowed = new Set(options || []);
   const entries = [];
   for (const [date, value] of Object.entries(counts)) {
-    if (date === NOA_KEY) {
+    if (date === NOA_KEY || date === NOT_ATTENDING_KEY) {
       const n = Number(value);
       if (!Number.isFinite(n)) return { ok: false, error: 'invalid_count' };
       const normalized = Math.max(0, Math.floor(n));
-      entries.push({ date: NOA_KEY, count: normalized });
+      entries.push({ date, count: normalized });
       continue;
     }
     const dateResult = isValidISODate(date);

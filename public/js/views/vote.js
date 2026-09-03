@@ -2,14 +2,17 @@ import { el, set } from '../utils/dom.js';
 import * as formStore from '../storage/form-store.js';
 import * as nicknameStore from '../storage/nickname-store.js';
 import * as noaStore from '../storage/none-of-above-store.js';
+import * as notAttendingStore from '../storage/not-attending-store.js';
 import * as userStore from '../storage/user-store.js';
 import * as voteStore from '../storage/vote-store.js';
 import { getForm, getRespondents, vote, unvote } from '../api-client.js';
 import { NOA_KEY } from '../noa-key.js';
+import { NOT_ATTENDING_KEY } from '../not-attending-key.js';
 import { renderCalendar } from '../components/calendar.js';
 import { createStatusBar } from '../components/status-bar.js';
 import { createRespondents } from '../components/participants.js';
 import { createNoneOfAboveButton } from '../components/none-of-above-button.js';
+import { createNotAttendingButton } from '../components/not-attending-button.js';
 
 export function Vote(q) {
   const app = el('div');
@@ -73,7 +76,7 @@ export function Vote(q) {
     style: 'display:none',
   });
   const calendarContainer = el('div');
-  const noaButtonContainer = el('div');
+  const specialVoteRow = el('div', { class: 'special-vote-row' });
   const respondentsComponent = createRespondents({
     respondents: [],
   });
@@ -98,7 +101,7 @@ export function Vote(q) {
         errorMessage,
         statusBar.element,
         calendarContainer,
-        noaButtonContainer
+        specialVoteRow
       ),
       respondentsComponent.element
     )
@@ -106,6 +109,7 @@ export function Vote(q) {
   if (editButton) app.append(editButton);
   let calendarComponent = null;
   let noaButton = null;
+  let notAttendingButton = null;
 
   async function fetchAndUpdateRespondents() {
     try {
@@ -131,14 +135,17 @@ export function Vote(q) {
 
   let processingDate = null;
   let processingNoa = false;
+  let processingNotAttending = false;
 
   function render(j) {
     const voted = voteStore.get(j.formId);
     const noaActive = noaStore.get(j.formId);
+    const notAttendingActive = notAttendingStore.get(j.formId);
     const voteCount = voted.length;
     const maxVotes =
       j.maxVotes === undefined || j.maxVotes === null ? null : j.maxVotes;
     const noaCount = j.noneOfAboveCount ?? 0;
+    const notAttendingCount = j.notAttendingCount ?? 0;
 
     statusBar.reset();
     statusBar.update({ voteCount, maxVotes });
@@ -225,7 +232,7 @@ export function Vote(q) {
         }
         nicknameStore.saveLastNickname(nickname);
         noaStore.set(j.formId, true);
-        j.noneOfAboveCount = noaCount + 1;
+        j.noneOfAboveCount = (j.noneOfAboveCount ?? 0) + 1;
         processingNoa = false;
         render(j);
         await fetchAndUpdateRespondents();
@@ -245,8 +252,60 @@ export function Vote(q) {
           return;
         }
         noaStore.set(j.formId, false);
-        j.noneOfAboveCount = Math.max(0, noaCount - 1);
+        j.noneOfAboveCount = Math.max(0, (j.noneOfAboveCount ?? 0) - 1);
         processingNoa = false;
+        render(j);
+        await fetchAndUpdateRespondents();
+      }
+    };
+
+    const handleNotAttendingToggle = async newValue => {
+      if (processingNotAttending) return;
+      if (newValue) {
+        const nickname = nicknameInput.value.trim();
+        if (!nickname) {
+          showNicknameError();
+          return;
+        }
+        processingNotAttending = true;
+        render(j);
+        try {
+          await vote({
+            formId: j.formId,
+            date: NOT_ATTENDING_KEY,
+            userId,
+            nickname,
+          });
+        } catch (err) {
+          showError('送信失敗: ' + err.message);
+          processingNotAttending = false;
+          render(j);
+          return;
+        }
+        nicknameStore.saveLastNickname(nickname);
+        notAttendingStore.set(j.formId, true);
+        j.notAttendingCount = (j.notAttendingCount ?? 0) + 1;
+        processingNotAttending = false;
+        render(j);
+        await fetchAndUpdateRespondents();
+      } else {
+        processingNotAttending = true;
+        render(j);
+        try {
+          await unvote({
+            formId: j.formId,
+            date: NOT_ATTENDING_KEY,
+            userId,
+          });
+        } catch (err) {
+          showError('取り消し失敗: ' + err.message);
+          processingNotAttending = false;
+          render(j);
+          return;
+        }
+        notAttendingStore.set(j.formId, false);
+        j.notAttendingCount = Math.max(0, (j.notAttendingCount ?? 0) - 1);
+        processingNotAttending = false;
         render(j);
         await fetchAndUpdateRespondents();
       }
@@ -258,6 +317,7 @@ export function Vote(q) {
       voted,
       maxVotes,
       noneOfAboveCount: noaCount,
+      notAttendingCount,
       processingDate,
       onVote: handleVote,
     };
@@ -281,9 +341,23 @@ export function Vote(q) {
     };
     if (!noaButton) {
       noaButton = createNoneOfAboveButton(noaProps);
-      set(noaButtonContainer, noaButton.element);
+      specialVoteRow.append(noaButton.element);
     } else {
       noaButton.update(noaProps);
+    }
+
+    const notAttendingProps = {
+      active: notAttendingActive,
+      count: notAttendingCount,
+      maxCount,
+      processing: processingNotAttending,
+      onToggle: handleNotAttendingToggle,
+    };
+    if (!notAttendingButton) {
+      notAttendingButton = createNotAttendingButton(notAttendingProps);
+      specialVoteRow.append(notAttendingButton.element);
+    } else {
+      notAttendingButton.update(notAttendingProps);
     }
   }
   return app;
