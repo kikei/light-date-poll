@@ -14,6 +14,13 @@ import { createRespondents } from '../components/participants.js';
 import { createNoneOfAboveButton } from '../components/none-of-above-button.js';
 import { createNotAttendingButton } from '../components/not-attending-button.js';
 
+// The screen disables cells at the limit, so a 409 means that state was
+// bypassed or stale: say what happened rather than echo the error code.
+const voteFailureMessage = err =>
+  err.payload?.error === 'max_votes_exceeded'
+    ? '選択できる日数の上限に達しています'
+    : '投票失敗: ' + err.message;
+
 export function Vote(q) {
   const app = el('div');
   const { formId } = q;
@@ -212,7 +219,7 @@ export function Vote(q) {
           nickname,
         });
       } catch (err) {
-        showError('投票失敗: ' + err.message);
+        showError(voteFailureMessage(err));
         processingDate = null;
         render(j);
         return;

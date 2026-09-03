@@ -75,6 +75,17 @@ async function getUserVoteCount(formId, userId) {
   return Number(result.rows[0]?.count || 0);
 }
 
+async function countUserDateVotes({ formId, userId, excludeDates }) {
+  const result = await pool.query(
+    `
+    SELECT COUNT(*) as count FROM votes
+    WHERE form_id = $1 AND user_id = $2 AND date <> ALL($3::text[])
+  `,
+    [formId, userId, excludeDates]
+  );
+  return Number(result.rows[0]?.count || 0);
+}
+
 async function removeUserNickname(formId, userId) {
   await pool.query(
     'DELETE FROM user_nicknames WHERE form_id = $1 AND user_id = $2',
@@ -148,6 +159,7 @@ async function upsertCounts(formId, entries) {
 
 export {
   addVote,
+  countUserDateVotes,
   createFormRecord,
   findFormById,
   getAdminCounts,
