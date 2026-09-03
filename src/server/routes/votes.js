@@ -55,6 +55,9 @@ router.post('/forms/:id/vote', async (req, res) => {
         return res.status(404).json({ error: 'form not found' });
       if (result.error === 'invalid_date')
         return res.status(400).json({ error: 'invalid date' });
+      if (result.error === 'max_votes_exceeded')
+        return res.status(409).json({ error: 'max_votes_exceeded' });
+      return res.status(400).json({ error: result.error || 'bad_request' });
     }
 
     res.json({ ok: true });
@@ -89,6 +92,7 @@ router.delete('/forms/:id/vote', async (req, res) => {
         return res.status(404).json({ error: 'form not found' });
       if (result.error === 'invalid_date')
         return res.status(400).json({ error: 'invalid date' });
+      return res.status(400).json({ error: result.error || 'bad_request' });
     }
 
     res.json({ ok: true });

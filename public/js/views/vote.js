@@ -14,6 +14,13 @@ import { createRespondents } from '../components/participants.js';
 import { createNoneOfAboveButton } from '../components/none-of-above-button.js';
 import { createNotAttendingButton } from '../components/not-attending-button.js';
 
+// The screen disables cells at the limit, so a 409 means that state was
+// bypassed or stale: say what happened rather than echo the error code.
+const voteFailureMessage = err =>
+  err.payload?.error === 'max_votes_exceeded'
+    ? '選択できる日数の上限に達しています'
+    : '投票失敗: ' + err.message;
+
 export function Vote(q) {
   const app = el('div');
   const { formId } = q;
@@ -111,7 +118,7 @@ export function Vote(q) {
   let noaButton = null;
   let notAttendingButton = null;
 
-  async function fetchAndUpdateRespondents() {
+  async function refreshRespondents() {
     try {
       const data = await getRespondents({ formId });
       respondentsComponent.update({
@@ -122,12 +129,30 @@ export function Vote(q) {
     }
   }
 
+  // Optimistic updates only simulate the server; re-read the real counts so
+  // votes cast elsewhere show up and a no-op insert cannot inflate a badge.
+  async function refreshCounts(j) {
+    try {
+      const form = await getForm({ formId });
+      j.counts = form.counts;
+      j.noneOfAboveCount = form.noneOfAboveCount;
+      j.notAttendingCount = form.notAttendingCount;
+      render(j);
+    } catch (err) {
+      console.error('Failed to refresh counts:', err);
+    }
+  }
+
+  async function refreshAfterVote(j) {
+    await Promise.all([refreshCounts(j), refreshRespondents()]);
+  }
+
   (async () => {
     try {
       const j = await getForm({ formId });
       head.append(el('div', { class: 'muted form-message' }, j.message || ''));
       render(j);
-      await fetchAndUpdateRespondents();
+      await refreshRespondents();
     } catch (err) {
       calendarContainer.innerHTML = '<p>読み込み失敗</p>';
     }
@@ -176,7 +201,7 @@ export function Vote(q) {
         j.counts[date] = Math.max(0, (j.counts[date] || 0) - 1);
         processingDate = null;
         render(j);
-        await fetchAndUpdateRespondents();
+        await refreshAfterVote(j);
         return;
       }
       const nickname = nicknameInput.value.trim();
@@ -194,7 +219,7 @@ export function Vote(q) {
           nickname,
         });
       } catch (err) {
-        showError('投票失敗: ' + err.message);
+        showError(voteFailureMessage(err));
         processingDate = null;
         render(j);
         return;
@@ -204,7 +229,7 @@ export function Vote(q) {
       j.counts[date] = (j.counts[date] || 0) + 1;
       processingDate = null;
       render(j);
-      await fetchAndUpdateRespondents();
+      await refreshAfterVote(j);
     };
 
     const handleNoaToggle = async newValue => {
@@ -235,7 +260,7 @@ export function Vote(q) {
         j.noneOfAboveCount = (j.noneOfAboveCount ?? 0) + 1;
         processingNoa = false;
         render(j);
-        await fetchAndUpdateRespondents();
+        await refreshAfterVote(j);
       } else {
         processingNoa = true;
         render(j);
@@ -255,7 +280,7 @@ export function Vote(q) {
         j.noneOfAboveCount = Math.max(0, (j.noneOfAboveCount ?? 0) - 1);
         processingNoa = false;
         render(j);
-        await fetchAndUpdateRespondents();
+        await refreshAfterVote(j);
       }
     };
 
@@ -287,7 +312,7 @@ export function Vote(q) {
         j.notAttendingCount = (j.notAttendingCount ?? 0) + 1;
         processingNotAttending = false;
         render(j);
-        await fetchAndUpdateRespondents();
+        await refreshAfterVote(j);
       } else {
         processingNotAttending = true;
         render(j);
@@ -307,7 +332,7 @@ export function Vote(q) {
         j.notAttendingCount = Math.max(0, (j.notAttendingCount ?? 0) - 1);
         processingNotAttending = false;
         render(j);
-        await fetchAndUpdateRespondents();
+        await refreshAfterVote(j);
       }
     };
 

@@ -79,7 +79,7 @@ POST /api/forms/:id/vote
 サーバは startDate から endDate までを走査して日付候補を生成する。平日のみの指定が true の場合、土曜と日曜を除外する。days を指定した場合、候補数を days 件に制限する。祝日の除外は本仕様に含めない。
 
 ## 検証
-POST /api/forms は startDate、endDate、message の欠落を 400 で返す。POST /api/forms/:id/vote は date の欠落を 400 で返す。GET /api/forms/:id は存在しないフォーム ID に対して 404 を返す。
+POST /api/forms は startDate、endDate、message の欠落を 400 で返す。POST /api/forms/:id/vote は date の欠落を 400 で返し、max_votes を超える日付投票を 409 で返す。GET /api/forms/:id は存在しないフォーム ID に対して 404 を返す。
 
 ## 編集
 本最小版はメッセージの更新や期間の再計算を実装しない。編集画面は投票 URL の確認に用いる。将来の拡張時は PUT /api/forms/:id を追加し、secret による簡易な保護を行う。

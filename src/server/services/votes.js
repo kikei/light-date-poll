@@ -1,8 +1,9 @@
-import { pool } from '../db/pool.js';
 import { NOA_KEY } from '../utils/noa-key.js';
 import { NOT_ATTENDING_KEY } from '../utils/not-attending-key.js';
 import {
   addVote,
+  countUserDateVotes,
+  findFormById,
   getUserVoteCount,
   removeUserNickname,
   removeVote,
@@ -13,20 +14,34 @@ function isSpecialKey(date) {
   return date === NOA_KEY || date === NOT_ATTENDING_KEY;
 }
 
-async function getFormOptions(formId) {
-  const formResult = await pool.query(
-    'SELECT options FROM forms WHERE form_id = $1',
-    [formId]
-  );
-  if (!formResult.rowCount) return null;
-  return formResult.rows[0].options;
+// The limit covers dates only, matching what the vote screen disables.
+// Re-voting a date already held is a no-op insert, so exclude it too:
+// otherwise the last date a user picked could not be sent twice.
+async function isOverMaxVotes({ formId, userId, date, maxVotes }) {
+  if (maxVotes === null) return false;
+  const held = await countUserDateVotes({
+    formId,
+    userId,
+    excludeDates: [date, NOA_KEY, NOT_ATTENDING_KEY],
+  });
+  return held >= maxVotes;
 }
 
 async function incrementVote({ formId, date, userId, nickname }) {
-  const options = await getFormOptions(formId);
-  if (!options) return { ok: false, error: 'not_found' };
-  if (!isSpecialKey(date) && !options.includes(date))
-    return { ok: false, error: 'invalid_date' };
+  const form = await findFormById(formId);
+  if (!form) return { ok: false, error: 'not_found' };
+
+  if (!isSpecialKey(date)) {
+    if (!form.options.includes(date))
+      return { ok: false, error: 'invalid_date' };
+    const overLimit = await isOverMaxVotes({
+      formId,
+      userId,
+      date,
+      maxVotes: form.maxVotes,
+    });
+    if (overLimit) return { ok: false, error: 'max_votes_exceeded' };
+  }
 
   await upsertUserNickname({ formId, userId, nickname });
   await addVote({ formId, date, userId });
@@ -34,9 +49,9 @@ async function incrementVote({ formId, date, userId, nickname }) {
 }
 
 async function decrementVote({ formId, date, userId }) {
-  const options = await getFormOptions(formId);
-  if (!options) return { ok: false, error: 'not_found' };
-  if (!isSpecialKey(date) && !options.includes(date))
+  const form = await findFormById(formId);
+  if (!form) return { ok: false, error: 'not_found' };
+  if (!isSpecialKey(date) && !form.options.includes(date))
     return { ok: false, error: 'invalid_date' };
 
   await removeVote({ formId, date, userId });
