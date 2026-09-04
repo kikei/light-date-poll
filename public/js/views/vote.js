@@ -9,7 +9,6 @@ import { NOA_KEY } from '../noa-key.js';
 import { NOT_ATTENDING_KEY } from '../not-attending-key.js';
 import { renderCalendar } from '../components/calendar.js';
 import { createStatusBar } from '../components/status-bar.js';
-import { createRespondentCount } from '../components/respondent-count.js';
 import { createNoneOfAboveButton } from '../components/none-of-above-button.js';
 import { createNotAttendingButton } from '../components/not-attending-button.js';
 
@@ -52,7 +51,6 @@ export function Vote(q) {
   });
   const calendarContainer = el('div');
   const specialVoteRow = el('div', { class: 'special-vote-row' });
-  const respondentCount = createRespondentCount({ count: 0 });
 
   const showError = message => {
     errorMessage.textContent = message;
@@ -73,8 +71,7 @@ export function Vote(q) {
         errorMessage,
         statusBar.element,
         calendarContainer,
-        specialVoteRow,
-        respondentCount.element
+        specialVoteRow
       )
     )
   );
@@ -89,7 +86,6 @@ export function Vote(q) {
     try {
       const form = await getForm({ formId });
       j.counts = form.counts;
-      j.respondentCount = form.respondentCount;
       j.noneOfAboveCount = form.noneOfAboveCount;
       j.notAttendingCount = form.notAttendingCount;
       render(j);
@@ -127,7 +123,6 @@ export function Vote(q) {
 
     statusBar.reset();
     statusBar.update({ voteCount, maxVotes });
-    respondentCount.update({ count: j.respondentCount ?? 0 });
     j.counts = j.counts || {};
     const counts = j.counts;
 
