@@ -10,8 +10,10 @@ const voteTier = (count, max) => {
 };
 
 /**
- * Create a「参加しない」toggle button
+ * Create a toggle button for an option that is not a candidate date.
  * @param {Object} params
+ * @param {string} params.option - Vote key, also the modifier class suffix.
+ * @param {string} params.label
  * @param {boolean} params.active
  * @param {number} params.count
  * @param {number} params.maxCount
@@ -22,22 +24,22 @@ const voteTier = (count, max) => {
  *   update: Function,
  * }}
  */
-export function createNotAttendingButton({
+export function createSpecialVoteButton({
+  option,
+  label,
   active = false,
   count = 0,
   maxCount = 0,
   processing = false,
   onToggle,
 } = {}) {
+  const baseClass = `special-vote-btn special-vote-btn--${option}`;
   const badge = el('span', { class: 'pill-badge' });
-  const label = el('span', { class: 'not-attending-label' }, '参加しない');
+  const text = el('span', { class: 'special-vote-label' }, label);
   const button = el(
     'button',
-    {
-      class: 'not-attending-btn',
-      type: 'button',
-    },
-    label,
+    { class: baseClass, type: 'button' },
+    text,
     badge
   );
 
@@ -58,7 +60,7 @@ export function createNotAttendingButton({
     const scale = mc > 0 ? 0.92 + ratio * 0.16 : 1;
     badge.style.setProperty('--badge-scale', scale.toFixed(3));
 
-    button.className = 'not-attending-btn';
+    button.className = baseClass;
     button.classList.add(tier);
     if (a) button.classList.add('active');
     if (p) button.classList.add('processing');

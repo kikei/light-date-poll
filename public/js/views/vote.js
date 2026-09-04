@@ -1,16 +1,57 @@
 import { el, set } from '../utils/dom.js';
 import * as formStore from '../storage/form-store.js';
-import * as noaStore from '../storage/none-of-above-store.js';
-import * as notAttendingStore from '../storage/not-attending-store.js';
+import * as specialVoteStore from '../storage/special-vote-store.js';
 import * as userStore from '../storage/user-store.js';
 import * as voteStore from '../storage/vote-store.js';
-import { getForm, recordView, vote, unvote } from '../api-client.js';
-import { NOA_KEY } from '../noa-key.js';
+import {
+  getForm,
+  recordView,
+  submitGateAnswer,
+  vote,
+  unvote,
+} from '../api-client.js';
+import { ANY_DATE_KEY } from '../any-date-key.js';
 import { NOT_ATTENDING_KEY } from '../not-attending-key.js';
 import { renderCalendar } from '../components/calendar.js';
 import { createStatusBar } from '../components/status-bar.js';
-import { createNoneOfAboveButton } from '../components/none-of-above-button.js';
-import { createNotAttendingButton } from '../components/not-attending-button.js';
+import { createSpecialVoteButton } from '../components/special-vote-button.js';
+import { createEntryGate } from '../components/entry-gate.js';
+
+// Options that stand outside the candidate dates. Each is stored as a vote
+// under its own key and carries its own tally. storePrefix is the
+// localStorage prefix; 参加しない keeps 'na' so a poll already in flight
+// does not show a selected answer as unselected.
+// The gate answer is tallied separately from the option it selects, so the
+// choice travels under its own name.
+const GATE_CHOICES = [
+  {
+    choice: 'maybe',
+    option: ANY_DATE_KEY,
+    label: '参加するかも',
+    note: '日程があえば行きたい',
+  },
+  {
+    choice: 'no',
+    option: NOT_ATTENDING_KEY,
+    label: '今回は見送る',
+    note: '日程にかかわらず行かない',
+  },
+];
+
+const SPECIAL_OPTIONS = [
+  {
+    option: ANY_DATE_KEY,
+    label: 'どの日でもよい',
+    countKey: 'anyDateCount',
+    storePrefix: 'ad',
+  },
+  {
+    option: NOT_ATTENDING_KEY,
+    label: '参加しない',
+    countKey: 'notAttendingCount',
+    storePrefix: 'na',
+  },
+];
 
 // The screen disables cells at the limit, so a 409 means that state was
 // bypassed or stale: say what happened rather than echo the error code.
@@ -51,6 +92,21 @@ export function Vote(q) {
   });
   const calendarContainer = el('div');
   const specialVoteRow = el('div', { class: 'special-vote-row' });
+  const voteArea = el(
+    'div',
+    {},
+    statusBar.element,
+    calendarContainer,
+    specialVoteRow
+  );
+
+  // Someone who has already answered on this browser goes straight to the
+  // calendar; the gate is only there to make a first answer cheap.
+  const hasAnswered = () =>
+    voteStore.get(formId).length > 0 ||
+    SPECIAL_OPTIONS.some(spec =>
+      specialVoteStore.get(spec.storePrefix, formId)
+    );
 
   const showError = message => {
     errorMessage.textContent = message;
@@ -59,26 +115,55 @@ export function Vote(q) {
       errorMessage.style.display = 'none';
     }, 5000);
   };
+
+  let loadedForm = null;
+
+  const dismissGate = () => {
+    gate.element.hidden = true;
+  };
+
+  // The gate answer is a real vote, so someone who closes the tab here has
+  // still said something the organizer can read.
+  const chooseFromGate = async choice => {
+    const j = loadedForm;
+    if (!j) return;
+    const gateChoice = GATE_CHOICES.find(entry => entry.choice === choice);
+    const spec = SPECIAL_OPTIONS.find(
+      entry => entry.option === gateChoice.option
+    );
+    gate.setBusy(true);
+    try {
+      await submitGateAnswer({ formId: j.formId, userId, choice });
+    } catch (err) {
+      showError('送信失敗: ' + err.message);
+      gate.setBusy(false);
+      return;
+    }
+    specialVoteStore.set(spec.storePrefix, j.formId, true);
+    j[spec.countKey] = (j[spec.countKey] ?? 0) + 1;
+    gate.setBusy(false);
+    dismissGate();
+    render(j);
+    await refreshFromServer(j);
+  };
+
+  // Decided before the form loads, from localStorage alone, so a return
+  // visit never flashes the overlay.
+  const gate = createEntryGate({
+    choices: GATE_CHOICES,
+    onChoose: chooseFromGate,
+    hidden: hasAnswered(),
+  });
+
   set(
     app,
-    el(
-      'div',
-      {},
-      head,
-      el(
-        'div',
-        { class: 'card' },
-        errorMessage,
-        statusBar.element,
-        calendarContainer,
-        specialVoteRow
-      )
-    )
+    el('div', {}, head, el('div', { class: 'card' }, errorMessage, voteArea))
   );
   if (editButton) app.append(editButton);
+  // Fixed to the viewport, so it sits outside the card it covers.
+  app.append(gate.element);
   let calendarComponent = null;
-  let noaButton = null;
-  let notAttendingButton = null;
+  const specialButtons = new Map();
 
   // Optimistic updates only simulate the server; re-read the real counts so
   // votes cast elsewhere show up and a no-op insert cannot inflate a badge.
@@ -86,7 +171,7 @@ export function Vote(q) {
     try {
       const form = await getForm({ formId });
       j.counts = form.counts;
-      j.noneOfAboveCount = form.noneOfAboveCount;
+      j.anyDateCount = form.anyDateCount;
       j.notAttendingCount = form.notAttendingCount;
       render(j);
     } catch (err) {
@@ -97,6 +182,7 @@ export function Vote(q) {
   (async () => {
     try {
       const j = await getForm({ formId });
+      loadedForm = j;
       head.append(el('div', { class: 'muted form-message' }, j.message || ''));
       render(j);
       // Not awaited: the tally is for the organizer, and a failed write
@@ -108,18 +194,13 @@ export function Vote(q) {
   })();
 
   let processingDate = null;
-  let processingNoa = false;
-  let processingNotAttending = false;
+  const processingSpecial = new Set();
 
   function render(j) {
     const voted = voteStore.get(j.formId);
-    const noaActive = noaStore.get(j.formId);
-    const notAttendingActive = notAttendingStore.get(j.formId);
     const voteCount = voted.length;
     const maxVotes =
       j.maxVotes === undefined || j.maxVotes === null ? null : j.maxVotes;
-    const noaCount = j.noneOfAboveCount ?? 0;
-    const notAttendingCount = j.notAttendingCount ?? 0;
 
     statusBar.reset();
     statusBar.update({ voteCount, maxVotes });
@@ -172,103 +253,39 @@ export function Vote(q) {
       await refreshFromServer(j);
     };
 
-    const handleNoaToggle = async newValue => {
-      if (processingNoa) return;
-      if (newValue) {
-        processingNoa = true;
+    // Both special options behave the same way; only the key, the label
+    // and the tally they move differ.
+    const specialToggle =
+      ({ option, countKey, storePrefix }) =>
+      async newValue => {
+        if (processingSpecial.has(option)) return;
+        processingSpecial.add(option);
         render(j);
+        const send = newValue ? vote : unvote;
         try {
-          await vote({
-            formId: j.formId,
-            date: NOA_KEY,
-            userId,
-          });
+          await send({ formId: j.formId, date: option, userId });
         } catch (err) {
-          showError('送信失敗: ' + err.message);
-          processingNoa = false;
+          const prefix = newValue ? '送信失敗: ' : '取り消し失敗: ';
+          showError(prefix + err.message);
+          processingSpecial.delete(option);
           render(j);
           return;
         }
-        noaStore.set(j.formId, true);
-        j.noneOfAboveCount = (j.noneOfAboveCount ?? 0) + 1;
-        processingNoa = false;
+        specialVoteStore.set(storePrefix, j.formId, newValue);
+        const held = j[countKey] ?? 0;
+        j[countKey] = newValue ? held + 1 : Math.max(0, held - 1);
+        processingSpecial.delete(option);
         render(j);
         await refreshFromServer(j);
-      } else {
-        processingNoa = true;
-        render(j);
-        try {
-          await unvote({
-            formId: j.formId,
-            date: NOA_KEY,
-            userId,
-          });
-        } catch (err) {
-          showError('取り消し失敗: ' + err.message);
-          processingNoa = false;
-          render(j);
-          return;
-        }
-        noaStore.set(j.formId, false);
-        j.noneOfAboveCount = Math.max(0, (j.noneOfAboveCount ?? 0) - 1);
-        processingNoa = false;
-        render(j);
-        await refreshFromServer(j);
-      }
-    };
-
-    const handleNotAttendingToggle = async newValue => {
-      if (processingNotAttending) return;
-      if (newValue) {
-        processingNotAttending = true;
-        render(j);
-        try {
-          await vote({
-            formId: j.formId,
-            date: NOT_ATTENDING_KEY,
-            userId,
-          });
-        } catch (err) {
-          showError('送信失敗: ' + err.message);
-          processingNotAttending = false;
-          render(j);
-          return;
-        }
-        notAttendingStore.set(j.formId, true);
-        j.notAttendingCount = (j.notAttendingCount ?? 0) + 1;
-        processingNotAttending = false;
-        render(j);
-        await refreshFromServer(j);
-      } else {
-        processingNotAttending = true;
-        render(j);
-        try {
-          await unvote({
-            formId: j.formId,
-            date: NOT_ATTENDING_KEY,
-            userId,
-          });
-        } catch (err) {
-          showError('取り消し失敗: ' + err.message);
-          processingNotAttending = false;
-          render(j);
-          return;
-        }
-        notAttendingStore.set(j.formId, false);
-        j.notAttendingCount = Math.max(0, (j.notAttendingCount ?? 0) - 1);
-        processingNotAttending = false;
-        render(j);
-        await refreshFromServer(j);
-      }
-    };
+      };
 
     const calendarProps = {
       options: j.options,
       counts,
       voted,
       maxVotes,
-      noneOfAboveCount: noaCount,
-      notAttendingCount,
+      minAttendees: j.minAttendees ?? null,
+      specialCounts: SPECIAL_OPTIONS.map(spec => j[spec.countKey] ?? 0),
       processingDate,
       onVote: handleVote,
     };
@@ -283,33 +300,25 @@ export function Vote(q) {
       maxCount = result?.maxCount ?? 0;
     }
 
-    const noaProps = {
-      active: noaActive,
-      count: noaCount,
-      maxCount,
-      processing: processingNoa,
-      onToggle: handleNoaToggle,
-    };
-    if (!noaButton) {
-      noaButton = createNoneOfAboveButton(noaProps);
-      specialVoteRow.append(noaButton.element);
-    } else {
-      noaButton.update(noaProps);
-    }
-
-    const notAttendingProps = {
-      active: notAttendingActive,
-      count: notAttendingCount,
-      maxCount,
-      processing: processingNotAttending,
-      onToggle: handleNotAttendingToggle,
-    };
-    if (!notAttendingButton) {
-      notAttendingButton = createNotAttendingButton(notAttendingProps);
-      specialVoteRow.append(notAttendingButton.element);
-    } else {
-      notAttendingButton.update(notAttendingProps);
-    }
+    SPECIAL_OPTIONS.forEach(spec => {
+      const props = {
+        option: spec.option,
+        label: spec.label,
+        active: specialVoteStore.get(spec.storePrefix, j.formId),
+        count: j[spec.countKey] ?? 0,
+        maxCount,
+        processing: processingSpecial.has(spec.option),
+        onToggle: specialToggle(spec),
+      };
+      const existing = specialButtons.get(spec.option);
+      if (existing) {
+        existing.update(props);
+        return;
+      }
+      const button = createSpecialVoteButton(props);
+      specialButtons.set(spec.option, button);
+      specialVoteRow.append(button.element);
+    });
   }
   return app;
 }

@@ -4,8 +4,10 @@ import {
   getFormById,
   getFormForAdmin,
   registerFormView,
+  registerGateAnswer,
   updateAdjustments,
   updateMessage,
+  updateMinAttendees,
 } from '../services/forms.js';
 import {
   isValidFormId,
@@ -76,12 +78,13 @@ router.post(
   validateDateRangeBody,
   validateMessage('body'),
   asyncHandler(async (req, res) => {
-    const { days } = req.body || {};
+    const { days, minAttendees } = req.body || {};
     const result = await createForm({
       startDate: req.validatedRange.startDate,
       endDate: req.validatedRange.endDate,
       message: req.validatedMessage,
       maxVotes: days,
+      minAttendees,
     });
     if (!result.ok) return respondServiceError(res, result);
 
@@ -119,6 +122,40 @@ router.post(
     });
     if (!result.ok) return respondServiceError(res, result);
     res.json({ ok: true });
+  })
+);
+
+// Record a first-screen answer
+router.post(
+  '/forms/:id/gate',
+  validateFormIdParam,
+  asyncHandler(async (req, res) => {
+    const { userId, choice } = req.body || {};
+    if (typeof userId !== 'string' || !userId.trim())
+      return res.status(400).json({ error: 'invalid userId' });
+    const result = await registerGateAnswer({
+      formId: req.params.id,
+      userId: userId.trim(),
+      choice,
+    });
+    if (!result.ok) return respondServiceError(res, result);
+    res.json({ ok: true });
+  })
+);
+
+// Update the minimum attendance (admin)
+router.put(
+  '/forms/:id/min-attendees',
+  validateFormIdParam,
+  requireSecret('body'),
+  asyncHandler(async (req, res) => {
+    const result = await updateMinAttendees({
+      formId: req.params.id,
+      secret: req.validatedSecret,
+      minAttendees: (req.body || {}).minAttendees,
+    });
+    if (!result.ok) return respondServiceError(res, result);
+    res.json({ ok: true, minAttendees: result.minAttendees });
   })
 );
 

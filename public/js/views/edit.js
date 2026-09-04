@@ -3,6 +3,7 @@ import * as formStore from '../storage/form-store.js';
 import { getFormAdmin } from '../api-client.js';
 import { createOverviewSection } from './edit/overview-section.js';
 import { createMessageSection } from './edit/message-section.js';
+import { createMinAttendeesSection } from './edit/min-attendees-section.js';
 import { createAdjustmentsSection } from './edit/adjustments-section.js';
 
 export function Edit(q) {
@@ -30,6 +31,10 @@ export function Edit(q) {
   formStore.save(formId, secret);
   const overviewSection = createOverviewSection({ formId, secret });
   const messageSection = createMessageSection({ formId, secret });
+  const minAttendeesSection = createMinAttendeesSection({
+    formId,
+    secret,
+  });
   const adjustmentsSection = createAdjustmentsSection({
     formId,
     secret,
@@ -42,6 +47,7 @@ export function Edit(q) {
       el('h2', {}, 'フォーム編集'),
       overviewSection.element,
       messageSection.element,
+      minAttendeesSection.element,
       adjustmentsSection.element
     )
   );
@@ -49,15 +55,18 @@ export function Edit(q) {
   async function loadForm() {
     overviewSection.showLoading();
     messageSection.showLoading();
+    minAttendeesSection.showLoading();
     adjustmentsSection.showLoading();
     try {
       const j = await getFormAdmin({ formId, secret });
       overviewSection.render(j);
       messageSection.render(j);
+      minAttendeesSection.render(j);
       adjustmentsSection.render(j);
     } catch (err) {
       overviewSection.showError(err);
       messageSection.showError(err);
+      minAttendeesSection.showError(err);
       adjustmentsSection.showError(err);
     }
   }
