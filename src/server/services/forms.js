@@ -139,7 +139,6 @@ async function getFormById(formId) {
     options: result.form.options,
     maxVotes: result.form.maxVotes,
     counts: result.counts,
-    respondentCount: result.respondentCount,
     noneOfAboveCount: result.noneOfAboveCount,
     notAttendingCount: result.notAttendingCount,
   };

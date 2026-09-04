@@ -604,13 +604,6 @@ textarea {
   color: var(--text-strong);
 }
 
-.respondent-count {
-  margin-top: 12px;
-  font-size: 14px;
-  color: var(--text-muted);
-  font-weight: 600;
-}
-
 .special-vote-row {
   display: grid;
   grid-template-columns: repeat(7, minmax(100px, 1fr));
