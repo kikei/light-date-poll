@@ -9,10 +9,10 @@ import {
   countRespondents,
   createFormRecord,
   findFormById,
-  getAdminCounts,
+  getCountAdjustments,
   getVoteCounts,
   recordFormView,
-  upsertCounts as persistCounts,
+  saveCountAdjustments as persistAdjustments,
   updateMessage as persistMessage,
 } from '../repositories/forms.js';
 
@@ -30,29 +30,72 @@ function rowsToCountsMap(rows) {
   return Object.fromEntries(rows.map(r => [String(r.date), Number(r.count)]));
 }
 
-async function getCountsMap(formId) {
-  const rows = await getVoteCounts(formId);
-  return rowsToCountsMap(rows);
+function rowsToAdjustmentsMap(rows) {
+  return Object.fromEntries(
+    rows.map(r => [String(r.date), Number(r.adjustment)])
+  );
+}
+
+// A positive adjustment can put a figure on a date nobody voted for, so the
+// result covers the keys of both maps rather than just the tallied ones.
+function applyAdjustments(tallies, adjustments) {
+  const keys = new Set([...Object.keys(tallies), ...Object.keys(adjustments)]);
+  const displayed = {};
+  for (const key of keys) {
+    const total = (tallies[key] ?? 0) + (adjustments[key] ?? 0);
+    displayed[key] = Math.max(0, total);
+  }
+  return displayed;
+}
+
+function withoutSpecialKeys(map) {
+  const out = {};
+  for (const [key, val] of Object.entries(map)) {
+    if (key !== NOA_KEY && key !== NOT_ATTENDING_KEY) out[key] = val;
+  }
+  return out;
 }
 
 async function getFormWithCounts(formId) {
   const form = await findFormById(formId);
   if (!form) return null;
-  const allCounts = await getCountsMap(formId);
+  const tallies = rowsToCountsMap(await getVoteCounts(formId));
+  const adjustments = rowsToAdjustmentsMap(await getCountAdjustments(formId));
+  const displayed = applyAdjustments(tallies, adjustments);
   const respondentCount = await countRespondents(formId);
-  const noneOfAboveCount = allCounts[NOA_KEY] ?? 0;
-  const notAttendingCount = allCounts[NOT_ATTENDING_KEY] ?? 0;
-  const counts = {};
-  for (const [key, val] of Object.entries(allCounts)) {
-    if (key !== NOA_KEY && key !== NOT_ATTENDING_KEY) counts[key] = val;
-  }
   return {
     form,
-    counts,
+    tallies,
+    adjustments,
+    displayed,
+    counts: withoutSpecialKeys(displayed),
     respondentCount,
-    noneOfAboveCount,
-    notAttendingCount,
+    noneOfAboveCount: displayed[NOA_KEY] ?? 0,
+    notAttendingCount: displayed[NOT_ATTENDING_KEY] ?? 0,
   };
+}
+
+// The editor needs all three numbers per key: the tally it is correcting,
+// the correction, and what participants end up seeing.
+function buildFigures({ options, tallies, adjustments, displayed }) {
+  const figures = {};
+  for (const key of [...options, NOA_KEY, NOT_ATTENDING_KEY]) {
+    figures[key] = {
+      tally: tallies[key] ?? 0,
+      adjustment: adjustments[key] ?? 0,
+      displayed: displayed[key] ?? 0,
+    };
+  }
+  return figures;
+}
+
+function figuresFor(result) {
+  return buildFigures({
+    options: result.form.options,
+    tallies: result.tallies,
+    adjustments: result.adjustments,
+    displayed: result.displayed,
+  });
 }
 
 async function createForm({ startDate, endDate, message, maxVotes }) {
@@ -123,10 +166,6 @@ async function getFormForAdmin({ formId, secret }) {
     formId,
     excludeDates: [NOA_KEY, NOT_ATTENDING_KEY],
   });
-  const adminRows = await getAdminCounts(formId);
-  const adminMap = rowsToCountsMap(adminRows);
-  const noaCount = adminMap[NOA_KEY] ?? 0;
-  const notAttendingAdminCount = adminMap[NOT_ATTENDING_KEY] ?? 0;
 
   return {
     ok: true,
@@ -136,60 +175,64 @@ async function getFormForAdmin({ formId, secret }) {
       options: result.form.options,
       maxVotes: result.form.maxVotes,
       counts: result.counts,
+      figures: figuresFor(result),
       viewCount,
       respondentCount: result.respondentCount,
       dateVoterCount,
       noneOfAboveCount: result.noneOfAboveCount,
       notAttendingCount: result.notAttendingCount,
-      noaCount,
-      notAttendingAdminCount,
     },
   };
 }
 
-function normalizeCountsInput(counts, options) {
-  if (!counts || typeof counts !== 'object' || Array.isArray(counts))
-    return { ok: false, error: 'invalid_counts' };
+const MAX_ADJUSTMENT = 10000;
+
+function normalizeAdjustmentKey(date, allowed) {
+  if (date === NOA_KEY || date === NOT_ATTENDING_KEY) return { ok: true, date };
+  const dateResult = isValidISODate(date);
+  if (!dateResult.valid) return { ok: false, error: 'invalid_date' };
+  const isoDate = toISO(dateResult.date);
+  if (!allowed.has(isoDate)) return { ok: false, error: 'invalid_date' };
+  return { ok: true, date: isoDate };
+}
+
+// Adjustments are signed: a correction usually removes votes that should
+// not be there. Zero is kept in the list so the repository can clear it.
+function normalizeAdjustmentsInput(adjustments, options) {
+  if (
+    !adjustments ||
+    typeof adjustments !== 'object' ||
+    Array.isArray(adjustments)
+  )
+    return { ok: false, error: 'invalid_adjustments' };
 
   const allowed = new Set(options || []);
   const entries = [];
-  for (const [date, value] of Object.entries(counts)) {
-    if (date === NOA_KEY || date === NOT_ATTENDING_KEY) {
-      const n = Number(value);
-      if (!Number.isFinite(n)) return { ok: false, error: 'invalid_count' };
-      const normalized = Math.max(0, Math.floor(n));
-      entries.push({ date, count: normalized });
-      continue;
-    }
-    const dateResult = isValidISODate(date);
-    if (!dateResult.valid) return { ok: false, error: 'invalid_date' };
-    const isoDate = toISO(dateResult.date);
-    if (!allowed.has(isoDate)) return { ok: false, error: 'invalid_date' };
-
+  for (const [date, value] of Object.entries(adjustments)) {
+    const key = normalizeAdjustmentKey(date, allowed);
+    if (!key.ok) return key;
     const n = Number(value);
-    if (!Number.isFinite(n)) return { ok: false, error: 'invalid_count' };
-    const normalized = Math.max(0, Math.floor(n));
-    entries.push({ date: isoDate, count: normalized });
+    if (!Number.isInteger(n)) return { ok: false, error: 'invalid_adjustment' };
+    if (Math.abs(n) > MAX_ADJUSTMENT)
+      return { ok: false, error: 'adjustment_out_of_range' };
+    entries.push({ date: key.date, adjustment: n });
   }
 
   return { ok: true, entries };
 }
 
-async function upsertCounts({ formId, secret, counts }) {
+async function updateAdjustments({ formId, secret, adjustments }) {
   const form = await findFormById(formId);
   if (!form) return { ok: false, error: 'not_found' };
   if (form.secret !== secret) return { ok: false, error: 'invalid_secret' };
 
-  const normalized = normalizeCountsInput(counts, form.options);
+  const normalized = normalizeAdjustmentsInput(adjustments, form.options);
   if (!normalized.ok) return normalized;
 
-  const entries = normalized.entries;
-  if (entries.length) {
-    await persistCounts(formId, entries);
-  }
+  await persistAdjustments(formId, normalized.entries);
 
-  const updatedCounts = await getCountsMap(formId);
-  return { ok: true, counts: updatedCounts };
+  const updated = await getFormWithCounts(formId);
+  return { ok: true, figures: figuresFor(updated) };
 }
 
 async function updateMessage({ formId, secret, message }) {
@@ -215,6 +258,6 @@ export {
   getFormById,
   getFormForAdmin,
   registerFormView,
-  upsertCounts,
+  updateAdjustments,
   updateMessage,
 };

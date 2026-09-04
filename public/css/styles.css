@@ -574,6 +574,36 @@ textarea {
   flex-shrink: 0;
 }
 
+/* Fixed columns so the figures line up down the rows, with a wider gap
+   between them than inside them. */
+.adjustment-row {
+  display: grid;
+  grid-template-columns: 160px 96px 96px auto;
+  align-items: center;
+  column-gap: 20px;
+  margin-bottom: 10px;
+}
+
+.adjustment-row label {
+  margin: 0;
+  font-weight: 600;
+  color: #172b4d;
+}
+
+.adjustment-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.adjustment-name {
+  color: var(--text-muted);
+}
+
+.adjustment-value {
+  color: var(--text-strong);
+}
+
 .respondent-count {
   margin-top: 12px;
   font-size: 14px;

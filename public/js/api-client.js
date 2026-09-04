@@ -64,10 +64,10 @@ export const recordView = async ({ formId, userId }) =>
 export const getFormAdmin = async ({ formId, secret }) =>
   request(`/forms/${formId}/admin?secret=${encodeURIComponent(secret)}`);
 
-export const updateCounts = async ({ formId, secret, counts }) =>
-  request(`/forms/${formId}/counts`, {
+export const updateAdjustments = async ({ formId, secret, adjustments }) =>
+  request(`/forms/${formId}/adjustments`, {
     method: 'PUT',
-    body: { secret, counts },
+    body: { secret, adjustments },
   });
 
 export const updateMessage = async ({ formId, secret, message }) =>

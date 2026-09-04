@@ -1,6 +1,5 @@
 import express from 'express';
 import { decrementVote, incrementVote } from '../services/votes.js';
-import { upsertCounts } from '../services/forms.js';
 import { toISO } from '../utils/date.js';
 import { NOA_KEY } from '../utils/noa-key.js';
 import { NOT_ATTENDING_KEY } from '../utils/not-attending-key.js';
@@ -87,40 +86,6 @@ router.delete('/forms/:id/vote', async (req, res) => {
     }
 
     res.json({ ok: true });
-  } catch (e) {
-    res.status(500).json({ error: 'server_error' });
-  }
-});
-
-// Update counts (admin)
-router.put('/forms/:id/counts', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { secret, counts } = req.body || {};
-    if (!isValidFormId(id))
-      return res.status(400).json({ error: 'invalid formId' });
-    if (!secret || typeof secret !== 'string')
-      return res.status(400).json({ error: 'missing secret' });
-
-    const result = await upsertCounts({
-      formId: id,
-      secret,
-      counts,
-    });
-    if (!result.ok) {
-      if (result.error === 'not_found')
-        return res.status(404).json({ error: 'not_found' });
-      if (result.error === 'invalid_secret')
-        return res.status(403).json({ error: 'invalid_secret' });
-      if (result.error === 'invalid_date')
-        return res.status(400).json({ error: 'invalid date' });
-      if (result.error === 'invalid_counts')
-        return res.status(400).json({ error: 'invalid counts' });
-      if (result.error === 'invalid_count')
-        return res.status(400).json({ error: 'invalid count' });
-    }
-
-    res.json({ ok: true, counts: result.counts });
   } catch (e) {
     res.status(500).json({ error: 'server_error' });
   }

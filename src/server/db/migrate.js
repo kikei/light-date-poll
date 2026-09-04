@@ -24,10 +24,10 @@ export async function migrate() {
     );
   `);
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS counts(
-      form_id TEXT NOT NULL,
-      date    TEXT NOT NULL,
-      count   INTEGER NOT NULL DEFAULT 0,
+    CREATE TABLE IF NOT EXISTS count_adjustments(
+      form_id    TEXT NOT NULL,
+      date       TEXT NOT NULL,
+      adjustment INTEGER NOT NULL,
       PRIMARY KEY(form_id, date),
       FOREIGN KEY (form_id) REFERENCES forms(form_id) ON DELETE CASCADE
     );
@@ -35,9 +35,6 @@ export async function migrate() {
   // Migrate existing DATE columns to TEXT
   await pool
     .query('ALTER TABLE votes ALTER COLUMN date TYPE TEXT USING date::TEXT')
-    .catch(() => {});
-  await pool
-    .query('ALTER TABLE counts ALTER COLUMN date TYPE TEXT USING date::TEXT')
     .catch(() => {});
   // Migrate none_of_above flags to votes rows
   await pool
@@ -62,4 +59,8 @@ export async function migrate() {
   `);
   // Names are no longer collected: nothing reads this table.
   await pool.query('DROP TABLE IF EXISTS user_nicknames');
+  // counts held absolute overrides that nothing has read since the vote
+  // screen switched to the votes table; count_adjustments replaces it and
+  // the old values carry no correction anyone still means.
+  await pool.query('DROP TABLE IF EXISTS counts');
 }

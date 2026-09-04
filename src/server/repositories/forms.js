@@ -130,10 +130,10 @@ async function getVoteCounts(formId) {
   return result.rows;
 }
 
-async function getAdminCounts(formId) {
+async function getCountAdjustments(formId) {
   const result = await pool.query(
-    `SELECT date, count
-     FROM counts
+    `SELECT date, adjustment
+     FROM count_adjustments
      WHERE form_id = $1`,
     [formId]
   );
@@ -147,20 +147,38 @@ async function updateMessage(formId, message) {
   ]);
 }
 
-async function upsertCounts(formId, entries) {
+// An adjustment of zero is the absence of one, so those rows are removed
+// rather than stored: only a correction someone made should exist.
+async function saveCountAdjustments(formId, entries) {
   if (!entries.length) return;
-  const values = entries
-    .map((_, i) => `($1, $${i * 2 + 2}, $${i * 2 + 3})`)
-    .join(',');
-  const params = [formId];
-  entries.forEach(e => {
-    params.push(e.date, e.count);
+  const kept = entries.filter(e => e.adjustment !== 0);
+  const cleared = entries.filter(e => e.adjustment === 0).map(e => e.date);
+
+  await withTransaction(async client => {
+    if (cleared.length) {
+      await client.query(
+        `DELETE FROM count_adjustments
+         WHERE form_id = $1 AND date = ANY($2::text[])`,
+        [formId, cleared]
+      );
+    }
+    if (kept.length) {
+      const values = kept
+        .map((_, i) => `($1, $${i * 2 + 2}, $${i * 2 + 3})`)
+        .join(',');
+      const params = [formId];
+      kept.forEach(e => {
+        params.push(e.date, e.adjustment);
+      });
+      await client.query(
+        `INSERT INTO count_adjustments(form_id, date, adjustment)
+         VALUES ${values}
+         ON CONFLICT (form_id, date)
+         DO UPDATE SET adjustment = EXCLUDED.adjustment`,
+        params
+      );
+    }
   });
-  await pool.query(
-    `INSERT INTO counts(form_id, date, count) VALUES ${values}
-     ON CONFLICT (form_id, date) DO UPDATE SET count = EXCLUDED.count`,
-    params
-  );
 }
 
 export {
@@ -171,11 +189,11 @@ export {
   countUserDateVotes,
   createFormRecord,
   findFormById,
-  getAdminCounts,
+  getCountAdjustments,
   getVoteCounts,
   recordFormView,
   removeVote,
+  saveCountAdjustments,
   updateMessage,
-  upsertCounts,
   withTransaction,
 };

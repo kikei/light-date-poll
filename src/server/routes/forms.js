@@ -4,6 +4,7 @@ import {
   getFormById,
   getFormForAdmin,
   registerFormView,
+  updateAdjustments,
   updateMessage,
 } from '../services/forms.js';
 import {
@@ -118,6 +119,22 @@ router.post(
     });
     if (!result.ok) return respondServiceError(res, result);
     res.json({ ok: true });
+  })
+);
+
+// Update count adjustments (admin)
+router.put(
+  '/forms/:id/adjustments',
+  validateFormIdParam,
+  requireSecret('body'),
+  asyncHandler(async (req, res) => {
+    const result = await updateAdjustments({
+      formId: req.params.id,
+      secret: req.validatedSecret,
+      adjustments: (req.body || {}).adjustments,
+    });
+    if (!result.ok) return respondServiceError(res, result);
+    res.json({ ok: true, figures: result.figures });
   })
 );
 
