@@ -17,11 +17,20 @@ async function withTransaction(work) {
 
 async function insertForm(
   client,
-  { formId, message, options, secret, maxVotes }
+  { formId, message, options, secret, maxVotes, minAttendees }
 ) {
   await client.query(
-    'INSERT INTO forms(form_id, message, options, secret, max_votes) VALUES($1,$2,$3,$4,$5)',
-    [formId, message ?? '', JSON.stringify(options), secret, maxVotes ?? null]
+    `INSERT INTO forms(form_id, message, options, secret, max_votes,
+       min_attendees)
+     VALUES($1,$2,$3,$4,$5,$6)`,
+    [
+      formId,
+      message ?? '',
+      JSON.stringify(options),
+      secret,
+      maxVotes ?? null,
+      minAttendees ?? null,
+    ]
   );
 }
 
@@ -34,7 +43,8 @@ async function createFormRecord(payload) {
 
 async function findFormById(formId) {
   const result = await pool.query(
-    'SELECT message, options, secret, max_votes FROM forms WHERE form_id=$1',
+    `SELECT message, options, secret, max_votes, min_attendees
+     FROM forms WHERE form_id=$1`,
     [formId]
   );
   if (!result.rowCount) return null;
@@ -45,6 +55,7 @@ async function findFormById(formId) {
     options: row.options,
     secret: row.secret,
     maxVotes: row.max_votes ?? null,
+    minAttendees: row.min_attendees ?? null,
   };
 }
 
@@ -78,6 +89,47 @@ async function countDateVoters({ formId, excludeDates }) {
     [formId, excludeDates]
   );
   return Number(result.rows[0]?.count || 0);
+}
+
+// First answers only: the gate is shown once, so the row records what
+// someone said on first contact and a later change of mind does not edit it.
+async function recordGateAnswer({ formId, userId, choice }) {
+  await pool.query(
+    `
+    INSERT INTO gate_answers(form_id, user_id, choice)
+    VALUES ($1, $2, $3)
+    ON CONFLICT (form_id, user_id) DO NOTHING
+  `,
+    [formId, userId, choice]
+  );
+}
+
+// GREATEST skips nulls, so rows from before voted_at existed are ignored
+// rather than dragging the answer down to nothing.
+async function getLastAnsweredAt(formId) {
+  const result = await pool.query(
+    `
+    SELECT GREATEST(
+      (SELECT MAX(voted_at) FROM votes WHERE form_id = $1),
+      (SELECT MAX(answered_at) FROM gate_answers WHERE form_id = $1)
+    ) AS last_answered_at
+  `,
+    [formId]
+  );
+  return result.rows[0]?.last_answered_at ?? null;
+}
+
+async function getGateAnswerCounts(formId) {
+  const result = await pool.query(
+    `
+    SELECT choice, COUNT(*) as count
+    FROM gate_answers
+    WHERE form_id = $1
+    GROUP BY choice
+  `,
+    [formId]
+  );
+  return result.rows;
 }
 
 async function countRespondents(formId) {
@@ -140,6 +192,13 @@ async function getCountAdjustments(formId) {
   return result.rows;
 }
 
+async function updateMinAttendees(formId, minAttendees) {
+  await pool.query('UPDATE forms SET min_attendees=$1 WHERE form_id=$2', [
+    minAttendees,
+    formId,
+  ]);
+}
+
 async function updateMessage(formId, message) {
   await pool.query('UPDATE forms SET message=$1 WHERE form_id=$2', [
     message,
@@ -190,10 +249,14 @@ export {
   createFormRecord,
   findFormById,
   getCountAdjustments,
+  getGateAnswerCounts,
+  getLastAnsweredAt,
   getVoteCounts,
   recordFormView,
+  recordGateAnswer,
   removeVote,
   saveCountAdjustments,
   updateMessage,
+  updateMinAttendees,
   withTransaction,
 };

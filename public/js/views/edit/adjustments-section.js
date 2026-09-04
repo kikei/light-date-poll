@@ -1,7 +1,7 @@
 import { el, set, withLoading } from '../../utils/dom.js';
 import { fmtIsoWithWeekday } from '../../utils/dates.js';
 import { updateAdjustments } from '../../api-client.js';
-import { NOA_KEY } from '../../noa-key.js';
+import { ANY_DATE_KEY } from '../../any-date-key.js';
 import { NOT_ATTENDING_KEY } from '../../not-attending-key.js';
 
 const SAVED_LABEL = '保存しました';
@@ -22,7 +22,7 @@ const field = (name, value) =>
   );
 
 const labelFor = key => {
-  if (key === NOA_KEY) return 'それ以外';
+  if (key === ANY_DATE_KEY) return 'どの日でもよい';
   if (key === NOT_ATTENDING_KEY) return '参加しない';
   return fmtIsoWithWeekday(key);
 };
@@ -81,7 +81,7 @@ export function createAdjustmentsSection({ formId, secret }) {
 
   const render = form => {
     const figures = form.figures || {};
-    const keys = [...form.options, NOA_KEY, NOT_ATTENDING_KEY];
+    const keys = [...form.options, ANY_DATE_KEY, NOT_ATTENDING_KEY];
     const rowsByKey = new Map();
 
     const rows = keys.map(key => {

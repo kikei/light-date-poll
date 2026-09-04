@@ -17,6 +17,7 @@ export function renderCalendar({
   counts = {},
   voted = [],
   maxVotes = null,
+  minAttendees = null,
   processingDate = null,
   onVote,
 }) {
@@ -49,13 +50,35 @@ export function renderCalendar({
     return 'vote-tier-low';
   };
 
+  // Marks where the decision is actually being made, so someone who said
+  // どの日でもよい has one or two dates to check rather than the whole
+  // calendar.
+  //
+  // Once any date reaches the minimum, only those are marked: voting
+  // should narrow the marks, not promote whatever now leads the rest,
+  // which would badge a date nobody touched on a couple of votes. The
+  // leader is marked only while nothing has reached the minimum at all,
+  // as somewhere for the first narrowing to go.
+  const badgedDates = (options, counts, minAttendees) => {
+    if (minAttendees == null) return new Set();
+    const at = options.filter(date => (counts[date] || 0) >= minAttendees);
+    if (at.length) return new Set(at);
+
+    const lead = options.reduce(
+      (max, date) => Math.max(max, counts[date] || 0),
+      0
+    );
+    if (lead === 0) return new Set();
+    return new Set(options.filter(date => (counts[date] || 0) === lead));
+  };
+
   const renderGrid = ({
     options = [],
     counts = {},
     voted = [],
     maxVotes = null,
-    noneOfAboveCount = 0,
-    notAttendingCount = 0,
+    minAttendees = null,
+    specialCounts = [],
     processingDate = null,
     onVote,
   } = {}) => {
@@ -66,7 +89,8 @@ export function renderCalendar({
       (max, date) => Math.max(max, counts[date] || 0),
       0
     );
-    const maxCount = Math.max(dateMax, noneOfAboveCount, notAttendingCount);
+    const maxCount = Math.max(dateMax, ...specialCounts);
+    const badged = badgedDates(options, counts, minAttendees);
 
     options.forEach(date => {
       const currentCount = counts[date] || 0;
@@ -80,6 +104,7 @@ export function renderCalendar({
       const isSunday = dayOfWeek === 0;
       const isSaturday = dayOfWeek === 6;
       const isDisabled = (limitReached && !isSelected) || isProcessing;
+      const isBadged = badged.has(date);
 
       const handleActivate = () => {
         if (typeof onVote === 'function') {
@@ -98,6 +123,7 @@ export function renderCalendar({
               (isSaturday ? ' saturday' : '') +
               (isDisabled ? ' disabled' : '') +
               (isProcessing ? ' processing' : '') +
+              (isBadged ? ' in-contention' : '') +
               (tierClass ? ' ' + tierClass : ''),
             style: `grid-column: ${dayOfWeek + 1}`,
             role: 'button',
@@ -132,8 +158,8 @@ export function renderCalendar({
     counts,
     voted,
     maxVotes,
-    noneOfAboveCount: 0,
-    notAttendingCount: 0,
+    minAttendees,
+    specialCounts: [],
     processingDate,
     onVote,
   });
