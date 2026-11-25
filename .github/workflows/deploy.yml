@@ -10,6 +10,7 @@ on:
       - 'package*.json'
       - 'Dockerfile'
       - '.dockerignore'
+      - '.github/workflows/deploy.yml'
 
 env:
   AWS_REGION: ap-northeast-1
@@ -41,7 +42,8 @@ jobs:
           REGISTRY: ${{ steps.ecr.outputs.registry }}
         run: |
           IMAGE=$REGISTRY/$ECR_REPOSITORY:$GITHUB_SHA
-          docker build -t $IMAGE .
+          # Lambda rejects an image index carrying an attestation manifest
+          docker build --provenance=false -t $IMAGE .
           docker push $IMAGE
 
       - name: Deploy Lambda function
