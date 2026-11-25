@@ -1,7 +1,7 @@
 import express from 'express';
 import { decrementVote, incrementVote } from '../services/votes.js';
 import { toISO } from '../utils/date.js';
-import { NOA_KEY } from '../utils/noa-key.js';
+import { ANY_DATE_KEY } from '../utils/any-date-key.js';
 import { NOT_ATTENDING_KEY } from '../utils/not-attending-key.js';
 import { isValidFormId, isValidISODate } from '../utils/validation.js';
 
@@ -12,7 +12,7 @@ function isValidUserId(userId) {
 }
 
 function parseDate(raw) {
-  if (raw === NOA_KEY || raw === NOT_ATTENDING_KEY)
+  if (raw === ANY_DATE_KEY || raw === NOT_ATTENDING_KEY)
     return { ok: true, date: raw };
   const result = isValidISODate(raw);
   if (!result.valid) return { ok: false, error: result.error };

@@ -13,22 +13,21 @@
 アプリケーションは単一の Web サービスとして動作する。サーバは API と静的 HTML を提供する。データベースは forms テーブルと counts テーブルで構成する。投票は匿名とし、ブラウザの localStorage に端末単位の投票済み日付を記録する。多重投票の厳密な抑止は行わない。
 
 ## 画面
-作成画面は開始日、終了日、メッセージ、候補上限日数、平日のみの有無を入力してフォームを作成する。作成ボタンを押すとフォーム ID と編集用 URL と投票用 URL を返す。編集画面は投票用 URL と回答状況 (UU、回答者数、内訳) を確認でき、票数の補正も行える。UU は投票画面には表示しない。投票画面は候補日と現在の票数を表示する。参加者は任意の日付ボタンを押して投票する。氏名やニックネームは収集せず、回答者数も投票画面には表示しない。投票済みの日付ボタンを再度クリックすると投票を取り消すことができる。
+作成画面は開始日、終了日、メッセージ、候補上限日数、平日のみの有無を入力してフォームを作成する。作成ボタンを押すとフォーム ID と編集用 URL と投票用 URL を返す。編集画面は投票用 URL と回答状況 (UU、意向、回答者数、内訳、最終回答時刻) を確認でき、票数の補正も行える。UU は投票画面には表示しない。投票画面は初回のみ「参加するかも」「今回は見送る」の二択をカレンダーの上にオーバーレイ表示し、どちらかを押すと対応する回答 (any-date / not-attending) を記録して閉じる。回答済みの端末には表示しない。表示の要否は localStorage だけで決まるため、フォームの取得を待たない。カレンダーは候補日と現在の票数を表示する。min_attendees が設定されている場合、票数がそれ以上の日付にバッジ (マスの右上角に重なる星形) を付ける。1 つも達していない場合に限り、最多の日付に付ける (票が 0 の日付は最多でも付けない)。達した日付が現れたら未満の日付には付けない。投票によってバッジが増えるのではなく絞られる形にするためである。「どの日でもよい」は日付の票数に含めないため、バッジの判定にも影響しない。バッジは、絞り込む際に確認すべき日付を限定するためのものである。参加者は任意の日付ボタンを押して投票する。氏名やニックネームは収集せず、回答者数も投票画面には表示しない。投票済みの日付ボタンを再度クリックすると投票を取り消すことができる。
 
 画面は単一 HTML によるハッシュルーティングで実装する。以下のパスを提供する。
 - `#/` または未指定: 作成画面
 - `#/vote?formId={id}`: 投票画面
 - `#/edit?formId={id}&secret={token}`: 編集画面
 
-## 特殊な選択肢(それ以外・参加しない)
+## 特殊な選択肢(どの日でもよい・参加しない)
 
 候補日以外に、参加者は次の 2 つを独立に選べる。日付やもう一方の選択と 排他制御は行わない(緩い日程調整という目的に対し、排他にする効果が薄いため)。
 
-- それ以外: 候補日のどれも都合が合わない。
-- 参加しない: そもそも参加しない。「それ以外」とは意味が異なる
-  (候補日次第では参加しうる、と参加そのものをしない、の違い)。
+- どの日でもよい: どの候補日でも参加できる。
+- 参加しない: 参加しない。
 
-実装上はどちらも「日付」の代わりに使う特殊な文字列キー (`none-of-above` / `not-attending`) として、通常の日付候補と同じ投票の仕組み (votes テーブルへの追加・取消) で実現している。
+実装上はどちらも「日付」の代わりに使う特殊な文字列キー (`any-date` / `not-attending`) として、通常の日付候補と同じ投票の仕組み (votes テーブルへの追加・取消) で実現している。日付ごとの票数には加算しない。「どの日でもよい」を全日付に足すと、閾値を超えるときは全日付が一斉に超えてしまい、日付を選り分けられなくなるためである。
 
 ## データモデル
 
@@ -38,13 +37,22 @@ forms テーブルは以下の列で構成する。
 - options: jsonb。日付の ISO 配列。
 - secret: text。編集用シークレット。
 - max_votes: integer。参加者 1 人が投票できる日付数の上限。null なら無制限。
+- min_attendees: integer。開催に必要な人数。null ならバッジを付けない。
 - created_at: timestamptz。作成時刻。
 
 votes テーブルは参加者ごとの投票を 1 行として持つ。
 - form_id: text。外部キー。forms.form_id を参照する (form 削除時に連動削除)。
-- date: text。候補日 (ISO 形式)、または特殊な選択肢のキー (`none-of-above` / `not-attending`)。
+- date: text。候補日 (ISO 形式)、または特殊な選択肢のキー (`any-date` / `not-attending`)。
 - user_id: text。参加者を識別する端末単位の ID (ブラウザの localStorage で保持し、匿名のまま端末単位で区別する)。
+- voted_at: timestamptz。投票時刻。この列より前に作られた行は null。
 複合主キーは (form_id, date, user_id) とする。投票画面に表示する票数はこのテーブルの行数を date ごとに集計した値である。回答者数は user_id の相異なる件数である。
+
+gate_answers テーブルは二択への回答を 1 行として持つ。
+- form_id: text。外部キー。forms.form_id を参照する (form 削除時に連動削除)。
+- user_id: text。votes.user_id と同じ識別子。
+- choice: text。`maybe` (参加するかも) または `no` (今回は見送る)。
+- answered_at: timestamptz。回答時刻。
+複合主キーは (form_id, user_id) とする。初回接触時の反応を測るものなので、既に行がある場合は上書きしない。二択の回答は votes にも記録されるが、カレンダー上で同じ選択肢を押した場合と区別するため、この集計は分けて持つ。
 
 form_views テーブルは投票画面を開いた端末を 1 行として持つ。
 - form_id: text。外部キー。forms.form_id を参照する (form 削除時に連動削除)。
@@ -63,7 +71,7 @@ count_adjustments テーブルは編集画面の「票数を補正」機能が�
 
 POST /api/forms  
 開始日、終了日、メッセージ、候補上限日数、平日のみの有無を受け取り、新しいフォームを作成する。成功時に formId、editUrl、voteUrl を返す。  
-入力: { startDate: "YYYY-MM-DD", endDate: "YYYY-MM-DD", message: string, days: number (省略時 10), weekdaysOnly: boolean (省略時 true) }  
+入力: { startDate: "YYYY-MM-DD", endDate: "YYYY-MM-DD", message: string, days: number (省略時 10), weekdaysOnly: boolean (省略時 true), minAttendees: number (省略可) }  
 出力: { formId: string, editUrl: string, voteUrl: string }
 
 GET /api/forms/:id  
@@ -79,6 +87,16 @@ POST /api/forms/:id/view
 投票画面を開いた端末を記録する。同じ端末を何度記録しても増えない。  
 入力: { userId: string }  
 出力: { ok: true }
+
+POST /api/forms/:id/gate  
+二択への回答を記録し、対応する投票を行う。  
+入力: { userId: string, choice: "maybe" | "no" }  
+出力: { ok: true }
+
+PUT /api/forms/:id/min-attendees  
+開催に必要な人数を設定する。secret による認証を要する。null で解除する。  
+入力: { secret: string, minAttendees: number | null }  
+出力: { ok: true, minAttendees: number | null }
 
 PUT /api/forms/:id/adjustments  
 票数の補正値を設定する。secret による認証を要する。0 を渡すと補正を解除する。  

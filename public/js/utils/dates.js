@@ -9,6 +9,23 @@ export function fmtJP(iso) {
   return `${month}/${day}`;
 }
 
+const pad = n => String(n).padStart(2, '0');
+
+/**
+ * Format a timestamp in the viewer's own zone, e.g. 9/4 15:32.
+ * @param {string|null} value - ISO timestamp.
+ * @returns {string}
+ */
+export function fmtDateTime(value) {
+  if (!value) return '';
+  const at = new Date(value);
+  if (Number.isNaN(at.getTime())) return '';
+  return (
+    `${at.getMonth() + 1}/${at.getDate()} ` +
+    `${pad(at.getHours())}:${pad(at.getMinutes())}`
+  );
+}
+
 const weekdayNames = ['日', '月', '火', '水', '木', '金', '土'];
 
 /**

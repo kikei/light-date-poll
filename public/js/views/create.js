@@ -36,7 +36,8 @@ export function Create(_query = {}) {
   const startId = 'start-date',
     endId = 'end-date',
     msgId = 'message',
-    daysId = 'max-days';
+    daysId = 'max-days',
+    minAttendeesId = 'min-attendees';
   const s = el('input', {
     id: startId,
     type: 'date',
@@ -60,6 +61,14 @@ export function Create(_query = {}) {
     value: '',
     style: 'width:80px',
   });
+  const minAttendees = el('input', {
+    id: minAttendeesId,
+    type: 'number',
+    min: 1,
+    value: '',
+    placeholder: '例: 5',
+    style: 'width:80px',
+  });
   const errorMsg = el('div', {
     class: 'error-message',
     style: 'display: none;',
@@ -67,7 +76,9 @@ export function Create(_query = {}) {
   const clearError = () => {
     errorMsg.textContent = '';
     errorMsg.style.display = 'none';
-    [s, e, msg, days].forEach(i => i.classList.remove('input-error'));
+    [s, e, msg, days, minAttendees].forEach(i =>
+      i.classList.remove('input-error')
+    );
   };
   const updateDaysMax = () => {
     if (s.value && e.value && e.value >= s.value) {
@@ -128,6 +139,8 @@ export function Create(_query = {}) {
           endDate: e.value,
           message: msg.value || '',
           days: days.value === '' ? null : days.value,
+          minAttendees:
+            minAttendees.value === '' ? null : Number(minAttendees.value),
         });
       } catch (err) {
         showError('作成に失敗しました: ' + err.message);
@@ -170,6 +183,16 @@ export function Create(_query = {}) {
             '一人が投票できる日数 (省略した場合は制限しない)'
           ),
           days
+        ),
+        el(
+          'div',
+          { class: 'form-group' },
+          el(
+            'label',
+            { for: minAttendeesId },
+            '開催に必要な人数 (省略した場合はバッジを付けない)'
+          ),
+          minAttendees
         ),
         errorMsg,
         el('div', { class: 'row' }, btn)

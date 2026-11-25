@@ -1,5 +1,6 @@
 :root {
   --blue-primary: #0052cc;
+  --badge-accent: #ff8b00;
   --blue-hover: #0065ff;
   --green-success: #00875a;
   --red-danger: #de350b;
@@ -125,6 +126,7 @@ h3 {
 }
 
 .date-cell {
+  position: relative;
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 12px 14px;
@@ -576,6 +578,46 @@ textarea {
 
 /* Fixed columns so the figures line up down the rows, with a wider gap
    between them than inside them. */
+.summary-table {
+  border-collapse: collapse;
+  font-size: 15px;
+  color: var(--text-strong);
+}
+
+.summary-table th,
+.summary-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  font-weight: normal;
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+
+.summary-table th {
+  padding-left: 0;
+}
+
+.summary-table tr:last-child th,
+.summary-table tr:last-child td {
+  border-bottom: none;
+}
+
+.summary-value {
+  text-align: right;
+}
+
+.summary-unit {
+  font-size: 13px;
+  padding-left: 0;
+}
+
+.summary-detail {
+  font-size: 14px;
+  white-space: normal;
+  width: 100%;
+}
+
 .adjustment-row {
   display: grid;
   grid-template-columns: 160px 96px 96px auto;
@@ -604,6 +646,130 @@ textarea {
   color: var(--text-strong);
 }
 
+/* Dates where the decision is being made: at or above the minimum, or
+   leading among those below it. U+2731 has no emoji presentation, so it
+   renders as a glyph everywhere. */
+/* A starburst sitting across the top-right corner. Drawn as a mask so the
+   colour stays with the rest of the palette. */
+.date-cell.in-contention::after {
+  content: '';
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 28px;
+  height: 28px;
+  background-color: var(--badge-accent);
+  -webkit-mask-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><polygon points='50.0,0.0 61.9,21.4 85.4,14.6 78.6,38.1 100.0,50.0 78.6,61.9 85.4,85.4 61.9,78.6 50.0,100.0 38.1,78.6 14.6,85.4 21.4,61.9 0.0,50.0 21.4,38.1 14.6,14.6 38.1,21.4' fill='black'/></svg>");
+  mask-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><polygon points='50.0,0.0 61.9,21.4 85.4,14.6 78.6,38.1 100.0,50.0 78.6,61.9 85.4,85.4 61.9,78.6 50.0,100.0 38.1,78.6 14.6,85.4 21.4,61.9 0.0,50.0 21.4,38.1 14.6,14.6 38.1,21.4' fill='black'/></svg>");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
+@keyframes entry-gate-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes entry-gate-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+/* Over the vote screen rather than in place of it: the calendar stays
+   visible behind, so the question reads as a step rather than a wall. */
+.entry-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(9, 30, 66, 0.28);
+  backdrop-filter: blur(5px);
+  animation: entry-gate-in 160ms ease-out;
+}
+
+/* display on the element itself beats the UA rule for [hidden]. */
+.entry-gate[hidden] {
+  display: none;
+}
+
+.entry-gate-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(150px, 1fr));
+  gap: 16px;
+  width: min(560px, 100%);
+  padding: 20px;
+  background: #f7f8f9;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 18px 44px -26px rgba(9, 30, 66, 0.4);
+  animation: entry-gate-panel-in 200ms ease-out;
+}
+
+.entry-gate-panel.busy {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* White on a white panel reads as an area, not a control, so the panel is
+   the recessed surface and the buttons lift off it. The lift is a blurred
+   shadow rather than a hard edge, to sit with the rest of the app. */
+.entry-gate-btn {
+  display: grid;
+  gap: 6px;
+  align-content: center;
+  min-height: 104px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  text-align: center;
+  color: var(--text-strong);
+  box-shadow: 0 2px 6px -2px rgba(9, 30, 66, 0.22);
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    background 140ms ease,
+    transform 80ms ease;
+}
+
+.entry-gate-label {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.entry-gate-note {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.entry-gate-btn:hover {
+  background: #f8faff;
+  border-color: #c8def4;
+  box-shadow: 0 6px 14px -6px rgba(9, 30, 66, 0.3);
+}
+
+.entry-gate-btn:focus-visible {
+  outline: 2px solid var(--blue-primary);
+  outline-offset: 2px;
+}
+
+.entry-gate-btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 3px -2px rgba(9, 30, 66, 0.3);
+}
+
+.entry-gate-btn:disabled {
+  cursor: wait;
+}
+
 .special-vote-row {
   display: grid;
   grid-template-columns: repeat(7, minmax(100px, 1fr));
@@ -611,180 +777,98 @@ textarea {
   margin-top: 12px;
 }
 
-.none-of-above-btn {
+.special-vote-btn {
+  height: auto;
+  min-height: 60px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text-strong);
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    background 140ms ease,
+    color 140ms ease;
+}
+
+.special-vote-btn:hover {
+  background: #f8faff;
+  border-color: #c8def4;
+  box-shadow: 0 4px 10px -6px rgba(9, 30, 66, 0.3);
+}
+
+.special-vote-btn.active {
+  background: var(--blue-primary);
+  border-color: var(--blue-primary);
+  color: #fff;
+  box-shadow: 0 6px 16px -8px rgba(0, 82, 204, 0.6);
+}
+
+.special-vote-btn.active:hover {
+  background: #0747a6;
+  border-color: #0747a6;
+}
+
+.special-vote-btn.active .pill-badge {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+.special-vote-btn.active .pill-badge {
+  transform: scale(1);
+}
+
+.special-vote-btn.processing {
+  opacity: 0.6;
+  cursor: wait;
+  pointer-events: none;
+}
+
+.special-vote-btn.vote-tier-low:not(.active),
+.special-vote-btn.vote-tier-medium:not(.active),
+.special-vote-btn.vote-tier-high:not(.active),
+.special-vote-btn.vote-tier-top:not(.active) {
+  background: #fff;
+  border-color: var(--border);
+}
+
+.special-vote-btn.vote-tier-low:not(.active) .pill-badge {
+  background: #eceff4;
+  color: #42526e;
+  border-color: #d9dde3;
+}
+
+.special-vote-btn.vote-tier-medium:not(.active) .pill-badge {
+  background: #d4e6ff;
+  color: #0f2f66;
+  border-color: #b3cdf5;
+}
+
+.special-vote-btn.vote-tier-high:not(.active) .pill-badge {
+  background: #d7e6ff;
+  color: #0f2f66;
+  border-color: #9ebcef;
+}
+
+.special-vote-btn.vote-tier-top:not(.active) .pill-badge {
+  background: #b0e8e0;
+  color: #1f4d48;
+  border-color: #8dd5ce;
+}
+
+.special-vote-btn--any-date {
   grid-column: 4 / 6;
-  height: auto;
-  min-height: 60px;
-  padding: 12px 14px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  cursor: pointer;
-  font-weight: 700;
-  font-size: 14px;
-  color: var(--text-strong);
-  transition:
-    border-color 140ms ease,
-    box-shadow 140ms ease,
-    background 140ms ease,
-    color 140ms ease;
 }
 
-.none-of-above-btn:hover {
-  background: #f8faff;
-  border-color: #c8def4;
-  box-shadow: 0 4px 10px -6px rgba(9, 30, 66, 0.3);
-}
-
-.none-of-above-btn.active {
-  background: var(--blue-primary);
-  border-color: var(--blue-primary);
-  color: #fff;
-  box-shadow: 0 6px 16px -8px rgba(0, 82, 204, 0.6);
-}
-
-.none-of-above-btn.active:hover {
-  background: #0747a6;
-  border-color: #0747a6;
-}
-
-.none-of-above-btn.active .pill-badge {
-  background: rgba(255, 255, 255, 0.16);
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.24);
-}
-
-.none-of-above-btn.active .pill-badge {
-  transform: scale(1);
-}
-
-.none-of-above-btn.processing {
-  opacity: 0.6;
-  cursor: wait;
-  pointer-events: none;
-}
-
-.none-of-above-btn.vote-tier-low:not(.active),
-.none-of-above-btn.vote-tier-medium:not(.active),
-.none-of-above-btn.vote-tier-high:not(.active),
-.none-of-above-btn.vote-tier-top:not(.active) {
-  background: #fff;
-  border-color: var(--border);
-}
-
-.none-of-above-btn.vote-tier-low:not(.active) .pill-badge {
-  background: #eceff4;
-  color: #42526e;
-  border-color: #d9dde3;
-}
-
-.none-of-above-btn.vote-tier-medium:not(.active) .pill-badge {
-  background: #d4e6ff;
-  color: #0f2f66;
-  border-color: #b3cdf5;
-}
-
-.none-of-above-btn.vote-tier-high:not(.active) .pill-badge {
-  background: #d7e6ff;
-  color: #0f2f66;
-  border-color: #9ebcef;
-}
-
-.none-of-above-btn.vote-tier-top:not(.active) .pill-badge {
-  background: #b0e8e0;
-  color: #1f4d48;
-  border-color: #8dd5ce;
-}
-
-.not-attending-btn {
+.special-vote-btn--not-attending {
   grid-column: 6 / 8;
-  height: auto;
-  min-height: 60px;
-  padding: 12px 14px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  cursor: pointer;
-  font-weight: 700;
-  font-size: 14px;
-  color: var(--text-strong);
-  transition:
-    border-color 140ms ease,
-    box-shadow 140ms ease,
-    background 140ms ease,
-    color 140ms ease;
-}
-
-.not-attending-btn:hover {
-  background: #f8faff;
-  border-color: #c8def4;
-  box-shadow: 0 4px 10px -6px rgba(9, 30, 66, 0.3);
-}
-
-.not-attending-btn.active {
-  background: var(--blue-primary);
-  border-color: var(--blue-primary);
-  color: #fff;
-  box-shadow: 0 6px 16px -8px rgba(0, 82, 204, 0.6);
-}
-
-.not-attending-btn.active:hover {
-  background: #0747a6;
-  border-color: #0747a6;
-}
-
-.not-attending-btn.active .pill-badge {
-  background: rgba(255, 255, 255, 0.16);
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.24);
-}
-
-.not-attending-btn.active .pill-badge {
-  transform: scale(1);
-}
-
-.not-attending-btn.processing {
-  opacity: 0.6;
-  cursor: wait;
-  pointer-events: none;
-}
-
-.not-attending-btn.vote-tier-low:not(.active),
-.not-attending-btn.vote-tier-medium:not(.active),
-.not-attending-btn.vote-tier-high:not(.active),
-.not-attending-btn.vote-tier-top:not(.active) {
-  background: #fff;
-  border-color: var(--border);
-}
-
-.not-attending-btn.vote-tier-low:not(.active) .pill-badge {
-  background: #eceff4;
-  color: #42526e;
-  border-color: #d9dde3;
-}
-
-.not-attending-btn.vote-tier-medium:not(.active) .pill-badge {
-  background: #d4e6ff;
-  color: #0f2f66;
-  border-color: #b3cdf5;
-}
-
-.not-attending-btn.vote-tier-high:not(.active) .pill-badge {
-  background: #d7e6ff;
-  color: #0f2f66;
-  border-color: #9ebcef;
-}
-
-.not-attending-btn.vote-tier-top:not(.active) .pill-badge {
-  background: #b0e8e0;
-  color: #1f4d48;
-  border-color: #8dd5ce;
 }

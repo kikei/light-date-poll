@@ -47,13 +47,25 @@ const request = async (path, options = {}) => {
   return payload;
 };
 
-export const createForm = async ({ startDate, endDate, message, days }) =>
+export const createForm = async ({
+  startDate,
+  endDate,
+  message,
+  days,
+  minAttendees,
+}) =>
   request('/forms', {
     method: 'POST',
-    body: { startDate, endDate, message, days },
+    body: { startDate, endDate, message, days, minAttendees },
   });
 
 export const getForm = async ({ formId }) => request(`/forms/${formId}`);
+
+export const submitGateAnswer = async ({ formId, userId, choice }) =>
+  request(`/forms/${formId}/gate`, {
+    method: 'POST',
+    body: { userId, choice },
+  });
 
 export const recordView = async ({ formId, userId }) =>
   request(`/forms/${formId}/view`, {
@@ -63,6 +75,12 @@ export const recordView = async ({ formId, userId }) =>
 
 export const getFormAdmin = async ({ formId, secret }) =>
   request(`/forms/${formId}/admin?secret=${encodeURIComponent(secret)}`);
+
+export const updateMinAttendees = async ({ formId, secret, minAttendees }) =>
+  request(`/forms/${formId}/min-attendees`, {
+    method: 'PUT',
+    body: { secret, minAttendees },
+  });
 
 export const updateAdjustments = async ({ formId, secret, adjustments }) =>
   request(`/forms/${formId}/adjustments`, {

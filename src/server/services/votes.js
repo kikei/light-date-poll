@@ -1,4 +1,4 @@
-import { NOA_KEY } from '../utils/noa-key.js';
+import { ANY_DATE_KEY } from '../utils/any-date-key.js';
 import { NOT_ATTENDING_KEY } from '../utils/not-attending-key.js';
 import {
   addVote,
@@ -8,7 +8,7 @@ import {
 } from '../repositories/forms.js';
 
 function isSpecialKey(date) {
-  return date === NOA_KEY || date === NOT_ATTENDING_KEY;
+  return date === ANY_DATE_KEY || date === NOT_ATTENDING_KEY;
 }
 
 // The limit covers dates only, matching what the vote screen disables.
@@ -19,7 +19,7 @@ async function isOverMaxVotes({ formId, userId, date, maxVotes }) {
   const held = await countUserDateVotes({
     formId,
     userId,
-    excludeDates: [date, NOA_KEY, NOT_ATTENDING_KEY],
+    excludeDates: [date, ANY_DATE_KEY, NOT_ATTENDING_KEY],
   });
   return held >= maxVotes;
 }
